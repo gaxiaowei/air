@@ -1,0 +1,18 @@
+{
+    "name": "john/air",
+    "type": "air",
+    "authors": [
+        {
+            "name": "John",
+            "email": "53950451@qq.com"
+        }
+    ],
+    "require": {
+        "psr/container": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Air\\": "src/"
+        }
+    }
+}
