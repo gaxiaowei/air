@@ -4,77 +4,179 @@ namespace Air\Kernel\Container;
 use Closure;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
+use ReflectionParameter;
 
 class Container implements \ArrayAccess, ContainerInterface
 {
+        /**
+         * 容器对象
+         * @var
+         */
         protected static $instance;
 
+        /**
+         * 共享的服务实例
+         * @var array
+         */
         private $instances = [];
+
+        /**
+         * 绑定的服务
+         * @var array
+         */
         private $bindings = [];
+
+        /**
+         * 服务别名
+         * @var array
+         */
         private $aliases = [];
 
         /**
-         * build目标实例化的参数
+         * 实例化服务目标参数
          * @var array
          */
-        private $buildArgs = [];
+        private $bindingArgs = [];
 
         /**
-         * 这个实现步骤
-         * 1 如果本实例不是共享实例要执行下面逻辑 否则直接返回
-         *   1.1 如果已存在实例且给出的初始化参数为空 返回实例
-         *   1.2 如果给出的参数非空对比上一次初始化参数如果相同 返回实例
+         * 构建目标实例化参数依赖
+         * @var array
+         */
+        private $buildStackArgs = [];
+
+        /**
+         * Container constructor.
+         */
+        private function __construct()
+        {
+                /**! 绑定自己到容器 !**/
+                $this->bind(static::class, $this, true);
+
+                /**! 设置别名 !**/
+                $this->alias('di', static::class);
+                $this->alias('container', static::class);
+        }
+
+        /**
+         * 返回容器对象
+         * @return static
+         */
+        public static function getInstance()
+        {
+                if (is_null(static::$instance)) {
+                        static::$instance = new static;
+                }
+
+                return static::$instance;
+        }
+
+        /**
+         * 向容器注册绑定
+         * @param $abstract
+         * @param null $concrete
+         * @param bool $shared
+         * @return $this
+         */
+        public function bind($abstract, $concrete = null, $shared = false)
+        {
+                unset($this->instances[$abstract], $this->aliases[$abstract]);
+
+                if (is_null($concrete)) {
+                        $concrete = $abstract;
+                }
+
+                if (!$concrete instanceof Closure) {
+                        $concrete = $this->getClosure($abstract, $concrete);
+                }
+
+                $this->bindings[$abstract] = compact('concrete', 'shared');
+
+                return $this;
+        }
+
+        /**
+         * 使用对象实例
          * @param $abstract
          * @param array $parameters
          * @return mixed
+         * @throws BindingResolutionException
+         * @throws EntryNotFoundException
          */
         public function make($abstract, $parameters = [])
         {
                 $abstract = $this->getAlias($abstract);
 
-                if ($this->instances[$abstract] && count($parameters) === 0) {
+                if (isset($this->instances[$abstract])) {
                         return $this->instances[$abstract];
                 }
+
+                /** 保存参数 **/
+                $this->bindingArgs[$abstract] = $parameters;
+
+                $concrete = $this->getConcrete($abstract);
+                if ($this->isBuildable($concrete, $abstract)) {
+                        $object = $this->build($concrete);
+                } else {
+                        $object = $this->make($concrete);
+                }
+
+                if ($this->isShared($abstract)) {
+                        $this->instances[$abstract] = $object;
+                }
+
+                /** 删除保存参数 **/
+                unset($this->bindingArgs[$abstract]);
+
+                return $object;
         }
 
         /**
-         * build一个对象 并返回
+         * 创建一个新的服务并返回
          * @param $concrete
-         * @return mixed|object
+         * @return mixed
          * @throws BindingResolutionException
-         * @throws \ReflectionException
+         * @throws EntryNotFoundException
          */
         public function build($concrete)
         {
                 if ($concrete instanceof Closure) {
-                        return $concrete($this);
+                        return $concrete($this, $this->bindingArgs);
                 }
 
-                $reflector = new ReflectionClass($concrete);
+                try {
+                        $reflector = new ReflectionClass($concrete);
 
-                /** 检查类是否可实例化, 排除抽象类abstract和对象接口interface **/
-                if (!$reflector->isInstantiable()) {
-                        return $this->throwNotInstantiable($concrete);
+                        /** 检查类是否可实例化, 排除抽象类abstract和对象接口interface **/
+                        if (!$reflector->isInstantiable()) {
+                                return $this->throwNotInstantiable($concrete);
+                        }
+
+                        /** 当依赖没有找到 用户错误提示 **/
+                        $this->buildStackArgs[] = $concrete;
+
+                        /** 获取构造参数判断是否存在 **/
+                        $constructor = $reflector->getConstructor();
+                        if (is_null($constructor)) {
+                                array_pop($this->buildStackArgs);
+
+                                return new $concrete;
+                        }
+
+                        /** 取构造函数参数, 获取自动注入依赖项 **/
+                        $dependencies = $constructor->getParameters();
+                        $instances = $this->resolveDependencies($dependencies);
+
+                        array_pop($this->buildStackArgs);
+
+                        /** 创建一个类的实例，给出的参数将传递到类的构造函数 **/
+                        return $reflector->newInstanceArgs($instances);
+                } catch (\ReflectionException $e) {
+                        throw new EntryNotFoundException("Target [{$concrete}] not found");
                 }
-
-                /** 获取构造参数判断是否存在 **/
-                $constructor = $reflector->getConstructor();
-                if (is_null($constructor)) {
-                        return new $concrete;
-                }
-
-                /** 取构造函数参数, 获取自动注入依赖项 **/
-                $dependencies = $constructor->getParameters();
-                $instances = $this->resolveDependencies($dependencies);
-
-                /** 创建一个类的实例，给出的参数将传递到类的构造函数 **/
-                $this->instances[$concrete] = $reflector->newInstanceArgs($instances);
-
-                return $this->instances[$concrete];
         }
 
         /**
-         * 指定别名
+         * 设置服务别名
          * @param $alias
          * @param $abstract
          */
@@ -84,7 +186,29 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
-         * 有设置别名则返回 否则返回自己
+         * 服务是否为共享
+         * @param $abstract
+         * @return bool
+         */
+        public function isShared($abstract)
+        {
+                return isset($this->instances[$abstract]) ||
+                        (isset($this->bindings[$abstract]['shared']) &&
+                                $this->bindings[$abstract]['shared'] === true);
+        }
+
+        /**
+         * 服务别名是否存在
+         * @param $name
+         * @return bool
+         */
+        public function isAlias($name)
+        {
+                return isset($this->aliases[$name]);
+        }
+
+        /**
+         * 返回服务的别名
          * @param $abstract
          * @return mixed
          */
@@ -97,9 +221,19 @@ class Container implements \ArrayAccess, ContainerInterface
               return $this->getAlias($this->aliases[$abstract]);
         }
 
+        /**
+         * 返回一个构建闭包
+         * @param $abstract
+         * @param $concrete
+         * @return Closure
+         */
         protected function getClosure($abstract, $concrete)
         {
-                return function ($container, $parameters = []) use ($abstract, $concrete) {
+                return function (Container $container, $parameters = []) use ($abstract, $concrete) {
+                        if (is_object($concrete)) {
+                                return $concrete;
+                        }
+
                         if ($abstract == $concrete) {
                                 return $container->build($concrete);
                         }
@@ -109,30 +243,60 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
+         * 解决依赖
          * @param array $dependencies
          * @return array
          * @throws BindingResolutionException
-         * @throws \ReflectionException
+         * @throws EntryNotFoundException
          */
         protected function resolveDependencies(array $dependencies)
         {
                 $results = [];
 
-                foreach ($dependencies as $parameter) {
-                        /** @var \ReflectionClass $dependency */
-                        $dependency = $parameter->getClass();
-                        if (is_null($dependency)) { //是变量, 有默认值则设置默认值
-                                $results[] = $this->resolveNonClass($parameter);
-                        } else { //是一个类递归解析
-                                if (!$dependency->isInstantiable()) {
-                                        throw new \InvalidArgumentException("Can't instantiate {$dependency->getName()}");
-                                }
-
-                                $results[] = $this->build($dependency->getName());
-                        }
+                foreach ($dependencies as $dependency) {
+                        $results[] = is_null($dependency->getClass())
+                                ? $this->resolvePrimitive($dependency)
+                                : $this->resolveClass($dependency);
                 }
 
                 return $results;
+        }
+
+        /**
+         * 解析类
+         * @param ReflectionParameter $parameter
+         * @return mixed
+         * @throws BindingResolutionException
+         * @throws EntryNotFoundException
+         */
+        protected function resolveClass(ReflectionParameter $parameter)
+        {
+                try {
+                        return $this->make($parameter->getClass()->getName());
+                } catch (BindingResolutionException $e) {
+                        if ($parameter->isOptional()) {
+                                return $parameter->getDefaultValue();
+                        }
+
+                        throw $e;
+                }
+        }
+
+        /**
+         * 解析参数
+         * @param ReflectionParameter $parameter
+         * @return mixed
+         * @throws BindingResolutionException
+         */
+        public function resolvePrimitive(ReflectionParameter $parameter)
+        {
+                if ($parameter->isDefaultValueAvailable()) {
+                        return $parameter->getDefaultValue();
+                }
+
+                $message = "Unresolvable dependency resolving [$parameter] in class {$parameter->getDeclaringClass()->getName()}";
+
+                throw new BindingResolutionException($message);
         }
 
         /**
@@ -154,37 +318,44 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
-         * 解析参数中的默认参数
-         * @param \ReflectionParameter $parameter
+         * 获取构造闭包
+         * @param $abstract
          * @return mixed
          */
-        public function resolveNonClass(\ReflectionParameter $parameter)
+        protected function getConcrete($abstract)
         {
-                if ($parameter->isDefaultValueAvailable()) {
-                        return $parameter->getDefaultValue();
+                if (isset($this->bindings[$abstract])) {
+                        return $this->bindings[$abstract]['concrete'];
                 }
 
-                throw new \InvalidArgumentException($parameter->getName().' must be not null');
+                return $abstract;
+        }
+
+        /**
+         * 是否可构建
+         * @param $concrete
+         * @param $abstract
+         * @return bool
+         */
+        protected function isBuildable($concrete, $abstract)
+        {
+                return $concrete === $abstract || $concrete instanceof Closure;
         }
 
         /**
          * 返回服务实例
          * @param string $id
-         * @return mixed|object
+         * @return mixed
          * @throws BindingResolutionException
-         * @throws \ReflectionException
+         * @throws EntryNotFoundException
          */
         public function get($id)
         {
                 if ($this->has($id)) {
-                        return $this->instances[$id];
+                        return $this->make($id);
                 }
 
-                if (class_exists($id)) {
-                        return $this->build($id);
-                }
-
-                throw new \InvalidArgumentException('class not found');
+                throw new EntryNotFoundException("Target [{$id}] not found");
         }
 
         /**
@@ -194,39 +365,67 @@ class Container implements \ArrayAccess, ContainerInterface
          */
         public function has($id)
         {
-                return isset($this->instances[$id]) ? true : false;
+                return isset($this->bindings[$id]) || isset($this->instances[$id]) || $this->isAlias($id);
         }
 
         /**
-         * 容器单例对象
-         * @return static
+         * @param mixed $key
+         * @return bool
          */
-        public static function getInstance()
+        public function offsetExists($key)
         {
-                if (is_null(static::$instance)) {
-                        static::$instance = new static;
-                }
-
-                return static::$instance;
+                return $this->has($key);
         }
 
-        public function offsetExists($offset)
+        /**
+         * @param mixed $key
+         * @return mixed
+         * @throws BindingResolutionException
+         * @throws EntryNotFoundException
+         */
+        public function offsetGet($key)
         {
-
+                return $this->make($key);
         }
 
-        public function offsetGet($offset)
+        /**
+         * @param mixed $key
+         * @param mixed $value
+         */
+        public function offsetSet($key, $value)
         {
-
+                $this->bind($key, $value instanceof Closure ? $value : function () use ($value) {
+                        return $value;
+                });
         }
 
-        public function offsetSet($offset, $value)
+        /**
+         * @param mixed $key
+         */
+        public function offsetUnset($key)
         {
+                $key = $this->getAlias($key);
 
+                unset($this->bindings[$key], $this->instances[$key]);
         }
 
-        public function offsetUnset($offset)
+        /**
+         * @param $key
+         * @return mixed
+         * @throws BindingResolutionException
+         * @throws EntryNotFoundException
+         */
+        public function __get($key)
         {
+                return $this->get($key);
+        }
 
+        /**
+         * @param $key
+         * @param $value
+         */
+        public function __set($key, $value)
+        {
+                $this->offsetSet($key, $value);
         }
 }
