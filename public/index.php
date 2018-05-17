@@ -12,7 +12,7 @@ class Demo
 
         public function get()
         {
-                //var_dump($this->di);
+                var_dump($this->di);
         }
 }
 
@@ -29,6 +29,7 @@ try {
         $di = \Air\Kernel\Container\Container::getInstance();
 
         /**@var $demo Demo**/
+        $di->singleton(Demo::class);
         $demo = $di->make(Demo::class);
         $demo->get();
 

@@ -21,7 +21,7 @@ class Container implements \ArrayAccess, ContainerInterface
         private $instances = [];
 
         /**
-         * 绑定的服务
+         * 服务的绑定
          * @var array
          */
         private $bindings = [];
@@ -39,7 +39,7 @@ class Container implements \ArrayAccess, ContainerInterface
         private $bindingArgs = [];
 
         /**
-         * 构建目标实例化参数依赖
+         * 构建绑定实例依赖的参数
          * @var array
          */
         private $buildStackArgs = [];
@@ -49,10 +49,10 @@ class Container implements \ArrayAccess, ContainerInterface
          */
         private function __construct()
         {
-                /**! 绑定自己到容器 !**/
-                $this->bind(static::class, $this, true);
+                /**! 将自己注册到容器中 !**/
+                $this->instance(static::class, $this);
 
-                /**! 设置别名 !**/
+                /**! 设置别名访问服务 !**/
                 $this->alias('di', static::class);
                 $this->alias('container', static::class);
         }
@@ -71,22 +71,48 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
-         * 向容器注册绑定
+         * 向容器注册一个单利绑定
          * @param $abstract
          * @param null $concrete
+         */
+        public function singleton($abstract, $concrete = null)
+        {
+                $this->bind($abstract, $concrete, true);
+        }
+
+        /**
+         * 向容器注册一个已经存在服务
+         * @param $abstract
+         * @param $instance
+         * @return mixed
+         */
+        public function instance($abstract, $instance)
+        {
+                $this->removeAlias($abstract);
+
+                $this->instances[$abstract] = $instance;
+
+                return $instance;
+        }
+
+        /**
+         * 向容器注册绑定
+         * @param string  $abstract
+         * @param \Closure|string|null  $concrete
          * @param bool $shared
          * @return $this
          */
         public function bind($abstract, $concrete = null, $shared = false)
         {
-                unset($this->instances[$abstract], $this->aliases[$abstract]);
+                /** 绑定之前先删除 **/
+                $this->dropStaleInstance($abstract);
 
                 if (is_null($concrete)) {
                         $concrete = $abstract;
                 }
 
                 if (!$concrete instanceof Closure) {
-                        $concrete = $this->getClosure($abstract, $concrete);
+                        $concrete = $this->buildClosure($abstract, $concrete);
                 }
 
                 $this->bindings[$abstract] = compact('concrete', 'shared');
@@ -113,13 +139,14 @@ class Container implements \ArrayAccess, ContainerInterface
                 /** 保存参数 **/
                 $this->bindingArgs[$abstract] = $parameters;
 
-                $concrete = $this->getConcrete($abstract);
+                $concrete = $this->getBuildClosure($abstract);
                 if ($this->isBuildable($concrete, $abstract)) {
                         $object = $this->build($concrete);
                 } else {
                         $object = $this->make($concrete);
                 }
 
+                /** 是共享服务设置到 instances 里 **/
                 if ($this->isShared($abstract)) {
                         $this->instances[$abstract] = $object;
                 }
@@ -222,27 +249,6 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
-         * 返回一个构建闭包
-         * @param $abstract
-         * @param $concrete
-         * @return Closure
-         */
-        protected function getClosure($abstract, $concrete)
-        {
-                return function (Container $container, $parameters = []) use ($abstract, $concrete) {
-                        if (is_object($concrete)) {
-                                return $concrete;
-                        }
-
-                        if ($abstract == $concrete) {
-                                return $container->build($concrete);
-                        }
-
-                        return $container->make($concrete, $parameters);
-                };
-        }
-
-        /**
          * 解决依赖
          * @param array $dependencies
          * @return array
@@ -318,17 +324,56 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /**
-         * 获取构造闭包
+         * 获取已注册的闭包
          * @param $abstract
          * @return mixed
          */
-        protected function getConcrete($abstract)
+        protected function getBuildClosure($abstract)
         {
                 if (isset($this->bindings[$abstract])) {
                         return $this->bindings[$abstract]['concrete'];
                 }
 
                 return $abstract;
+        }
+
+        /**
+         * 构建一个闭包并返回
+         * @param $abstract
+         * @param $concrete
+         * @return Closure
+         */
+        protected function buildClosure($abstract, $concrete)
+        {
+                return function (Container $container, $parameters = []) use ($abstract, $concrete) {
+                        if ($abstract == $concrete) {
+                                return $container->build($concrete);
+                        }
+
+                        return $container->make($concrete, $parameters);
+                };
+        }
+
+        /**
+         * 删除服务别名
+         * @param $delAbstract
+         */
+        protected function removeAlias($delAbstract)
+        {
+                foreach ($this->aliases as $alias => $abstract) {
+                        if ($abstract == $delAbstract) {
+                                unset($this->aliases[$alias]);
+                        }
+                }
+        }
+
+        /**
+         * 删除已经存在的实例和别名
+         * @param $abstract
+         */
+        protected function dropStaleInstance($abstract)
+        {
+                unset($this->instances[$abstract], $this->aliases[$abstract]);
         }
 
         /**
