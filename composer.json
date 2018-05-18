@@ -14,5 +14,8 @@
         "psr-4": {
             "Air\\": "src/"
         }
+    },
+    "require-dev": {
+        "eaglewu/swoole-ide-helper": "dev-master"
     }
 }
