@@ -38,7 +38,7 @@ class HttpServer
          */
         public function onStart()
         {
-                var_dump($this->di);
+                //var_dump($this->di);
                 echo 'http server started success';
         }
 
