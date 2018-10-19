@@ -1,6 +1,9 @@
 {
-    "name": "john_jun/air",
-    "type": "air",
+    "name": "air/air",
+    "description": "The Of Air Framework.",
+    "keywords": ["framework", "Air"],
+    "license": "MIT",
+    "type": "project",
     "authors": [
         {
             "name": "John",
@@ -8,6 +11,7 @@
         }
     ],
     "require": {
+        "php": ">=7.0.0",
         "psr/container": "^1.0"
     },
     "autoload": {
