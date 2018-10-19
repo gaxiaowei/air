@@ -6,6 +6,11 @@ use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionParameter;
 
+/**
+ * Ioc容器
+ * Class Container
+ * @package Air\Kernel\Container
+ */
 class Container implements \ArrayAccess, ContainerInterface
 {
         /**
