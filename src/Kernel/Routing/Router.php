@@ -14,14 +14,16 @@ use Psr\Container\ContainerInterface;
  * @method delete($path, $callback, $middleware = [])
  * @method head($path, $callback, $middleware = [])
  * @method options($path, $callback, $middleware = [])
+ * @method any($path, $callback, $middleware = [])
+ * @method match($method, $path, $callback, $middleware = [])
  */
 class Router
 {
-    const METHOD = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-    const AT = '@';
-    const HANDLER = '#';
+    const HTTP_METHOD = ['get', 'head', 'post', 'put', 'patch', 'delete', 'options', 'any', 'match'];
+    const METHOD_ALL = 'ANY';
+    const HANDLER = '#handler';
     const SEPARATOR = '/';
-    const PARAMETER = ':';
+    const PARAMETER = '*';
 
     /**
      * Ioc容器
@@ -29,7 +31,7 @@ class Router
      */
     private $container;
 
-    private $treeStructure = [];
+    private $tree = [];
 
     private $groupStack = [];
 
@@ -50,14 +52,14 @@ class Router
         $middleware = array_merge($groupStack, (array)$middleware);
         $middleware = array_unique($middleware);
 
-        $this->addTree($this->treeStructure, $this->split($path), $callback, (array)$middleware, (array)$method, $path);
+        $this->insertTree($this->split($path), $callback, (array)$middleware, (array)$method, $path);
 
         return $this;
     }
 
-    public function match($path)
+    public function route($path, $method)
     {
-        return $this->resolve($this->treeStructure, $this->split($path));
+        return $this->searchTree($this->split($path), $method);
     }
 
     public function group(array $attributes, \Closure $callback)
@@ -69,82 +71,94 @@ class Router
         array_pop($this->groupStack);
     }
 
-    public function middleware($middleware, \Closure $callback)
-    {
-        $this->group((array)$middleware, $callback);
-    }
-
     private function split(string $string)
     {
         if (!$string) {
             return $string;
         }
 
-        return explode(static::SEPARATOR, trim($string, static::SEPARATOR));
+        return explode(
+            static::SEPARATOR,
+            trim($string, static::SEPARATOR)
+        );
     }
 
-    private function addTree(&$node, $tokens, $callback, $middleware, $method, $uri)
+    private function insertTree($tokens, $callback, $middleware, $methods, $uri)
     {
-        if (!array_key_exists(static::PARAMETER, $node)) {
-            $node[static::PARAMETER] = [];
-        }
+        $matches = [];
 
-        $token = array_shift($tokens);
-        if (strncmp(static::PARAMETER, $token, 1) === 0) {
-            $node = &$node[static::PARAMETER];
-            $token = substr($token, 1);
-        }
+        foreach ($methods as $method) {
+            $method = strtoupper($method);
+            $tree = &$this->tree[$method] ?? [];
 
-        if ($token === null) {
-            $node[self::HANDLER] = [
-                'callback' => $callback,
-                'middleware' => $middleware,
+            foreach ($tokens as $token) {
+                if (strpos($token, '{') !== false) {
+                    $matches[substr($token, 1, -1)] = null;
+
+                    $token = static::PARAMETER;
+                }
+
+                if (!isset($tree[$token])) {
+                    $tree[$token] = [];
+                }
+
+                $tree = &$tree[$token];
+            }
+
+            $tree[static::HANDLER] = [
+                'uri' => $uri,
                 'method' => $method,
-                'uri' => $uri
+                'handler' => $callback,
+                'matches' => $matches,
+                'middleware' => $middleware
             ];
-
-            return;
         }
-
-        if (!array_key_exists($token, $node)) {
-            $node[$token] = [];
-        }
-
-        $this->addTree($node[$token], $tokens, $callback, $middleware, $method, $uri);
     }
 
-    private function resolve($node, $tokens, $params = [])
+    private function searchTree($tokens, $method)
     {
-        $token = array_shift($tokens);
-        if ($token === null && array_key_exists(static::HANDLER, $node)) {
-            return array_merge($node[static::HANDLER], ['matches' => $params]);
-        }
+        $nodes = $this->tree[strtoupper($method)] ?? $this->tree[static::METHOD_ALL] ?? false;
 
-        if (array_key_exists($token, $node)) {
-            return $this->resolve($node[$token], $tokens, $params);
-        }
-
-        foreach ($node[static::PARAMETER] as $childToken => $childNode) {
-            if ($token === null && array_key_exists(static::HANDLER, $childNode)) {
-                return array_merge($childNode[static::HANDLER], ['matches' => $params]);
+        if (false !== $nodes) {
+            foreach ($tokens as $token) {
+                if (isset($nodes[$token])) {
+                    $nodes = $nodes[$token];
+                } else if (isset($nodes[static::PARAMETER])) {
+                    $nodes = $nodes[static::PARAMETER];
+                    $matches[] = $token;
+                } else {
+                    return false;
+                }
             }
 
-            $handler = $this->resolve($childNode, $tokens, array_merge($params, [$childToken => $token]));
-            if ($handler !== false) {
-                return $handler;
+            if (isset($nodes[static::HANDLER])) {
+                foreach ($nodes[static::HANDLER]['matches'] as $key => $val) {
+                    $nodes[static::HANDLER]['matches'][$key] = array_shift($matches);
+                }
+
+                return $nodes[static::HANDLER];
             }
         }
 
-        return false;
+        return $nodes;
     }
 
     public function __call($name, $args)
     {
-        $name = strtoupper($name);
-        if (in_array($name, static::METHOD)) {
-            array_unshift($args, $name);
+        if (in_array($name, static::HTTP_METHOD)) {
+            if ($name === 'match') {
+                $args[0] = (array)$args[0];
+                if (in_array('any', $args[0])) {
+                    $name = 'any';
+                    unset($args[0]);
+                }
+            }
 
-            return call_user_func_array([$this, 'add'], $args);
+            if ($name !== 'match') {
+                array_unshift($args, strtoupper($name));
+            }
+
+            return $this->add(...$args);
         }
 
         throw new \Exception('Call to undefined method ' . __CLASS__ . '::' . $name . '()');

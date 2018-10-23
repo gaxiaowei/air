@@ -2,11 +2,8 @@
 require __DIR__.'/../vendor/autoload.php';
 
 $router = new \Air\Kernel\Routing\Router();
-$router->get('/index/:id', function() {
-    echo 123;
-});
-
-print_r($router->match('/index/123'));
+$router->match(['get', 'post'], '/index/{id}', 'Controller@index');
+print_r($router->route('/index/123', 'put'));
 exit;
 
 
