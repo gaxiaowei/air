@@ -9,9 +9,10 @@ namespace Air\Kernel\Loader;
 class ClassLoader
 {
     private $prefixPsr4 = [];
-    private $prefixPsr0 = [];
+    private $fallbackPsr4Dirs = [];
 
-    private $fallbackDirs = [];
+    private $prefixPsr0 = [];
+    private $fallbackPsr0Dirs = [];
 
     public function getPrefixPsr4(): array
     {
@@ -27,8 +28,8 @@ class ClassLoader
             );
 
             foreach ($paths as $dir) {
-                if (!in_array($dir, $this->fallbackDirs)) {
-                    $this->fallbackDirs[] = $dir;
+                if (!in_array($dir, $this->fallbackPsr4Dirs)) {
+                    $this->fallbackPsr4Dirs[] = $dir;
                 }
             }
 
@@ -57,8 +58,8 @@ class ClassLoader
             );
 
             foreach ($paths as $dir) {
-                if (!in_array($dir, $this->fallbackDirs)) {
-                    $this->fallbackDirs[] = $dir;
+                if (!in_array($dir, $this->fallbackPsr0Dirs)) {
+                    $this->fallbackPsr0Dirs[] = $dir;
                 }
             }
 
@@ -106,10 +107,26 @@ class ClassLoader
             }
         }
 
+        //PSR-4 fallback dirs
+        foreach ($this->fallbackPsr4Dirs as $dir) {
+            if (is_file($file = $dir . DIRECTORY_SEPARATOR . $class)) {
+                $this->includeFile($file);
+
+                return true;
+            }
+        }
+
+        //PSR-0 lookup
+        if (false !== $pos = strrpos($class, '\\')) {
+            $class = substr($class, 0, $pos + 1).
+                strtr(substr($class, $pos + 1), '_', DIRECTORY_SEPARATOR);
+        } else {
+            // PEAR-like class name
+            $class = strtr($class, '_', DIRECTORY_SEPARATOR);
+        }
+
         //PSR-0
         if (isset($this->prefixPsr0[$first])) {
-            $class = strtr($class, '_', DIRECTORY_SEPARATOR);
-
             foreach ($this->prefixPsr0[$first] as $prefix => $dirs) {
                 if (0 === strpos($class, $prefix)) {
                     foreach ($dirs as $dir) {
@@ -123,8 +140,8 @@ class ClassLoader
             }
         }
 
-        //fallback dirs
-        foreach ($this->fallbackDirs as $dir) {
+        //PSR-0 fallback dirs
+        foreach ($this->fallbackPsr0Dirs as $dir) {
             if (is_file($file = $dir . DIRECTORY_SEPARATOR . $class)) {
                 $this->includeFile($file);
 
