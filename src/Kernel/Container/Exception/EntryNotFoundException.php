@@ -1,5 +1,5 @@
 <?php
-namespace Air\Kernel\Container;
+namespace Air\Kernel\Container\Exception;
 
 use Psr\Container\NotFoundExceptionInterface;
 

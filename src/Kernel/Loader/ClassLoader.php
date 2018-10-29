@@ -1,11 +1,6 @@
 <?php
 namespace Air\Kernel\Loader;
 
-/**
- * 实现类自动加载
- * Class ClassLoader
- * @package Air\Kernel\Loader
- */
 class ClassLoader
 {
     private $prefixPsr4 = [];

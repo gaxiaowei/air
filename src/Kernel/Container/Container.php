@@ -1,6 +1,8 @@
 <?php
 namespace Air\Kernel\Container;
 
+use Air\Kernel\Container\Exception\BindingResolutionException;
+use Air\Kernel\Container\Exception\EntryNotFoundException;
 use Closure;
 use Psr\Container\ContainerInterface;
 use ReflectionClass;
