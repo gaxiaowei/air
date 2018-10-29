@@ -1,7 +1,7 @@
 <?php
-namespace Air\Orm\Connection;
+namespace Air\Database\Connection;
 
-use Air\Orm\Connection;
+use Air\Database\Connection;
 
 class Pdo extends \PDO implements Connection
 {

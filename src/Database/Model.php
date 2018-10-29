@@ -1,5 +1,5 @@
 <?php
-namespace Air\Orm;
+namespace Air\Database;
 
 interface model
 {
@@ -9,7 +9,7 @@ interface model
 	public static function delete(array $data=null):query;
 
 	public static function getDriver():string;
-	public static function getMaster():\Air\Orm\Connection;
+	public static function getMaster():\Air\Database\Connection;
 	public static function getSlave():connection;
 	public static function getDatabase():string;
 	public static function getTable():string;

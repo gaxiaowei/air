@@ -1,5 +1,5 @@
 <?php
-namespace Air\Orm;
+namespace Air\Database;
 
 interface query
 {

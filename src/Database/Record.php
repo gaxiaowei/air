@@ -1,5 +1,5 @@
 <?php
-namespace Air\Orm;
+namespace Air\Database;
 
 use Countable;
 use Iterator;
