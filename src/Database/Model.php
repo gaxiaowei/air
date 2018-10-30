@@ -1,17 +1,15 @@
 <?php
 namespace Air\Database;
 
-interface model
+interface Model
 {
-	public static function insert(array $data=null):record;
-	public static function select(string $columns='*'):query;
-	public static function update(array $data):query;
-	public static function delete(array $data=null):query;
+    public static function query();
 
-	public static function getDriver():string;
-	public static function getMaster():\Air\Database\Connection;
-	public static function getSlave():connection;
-	public static function getDatabase():string;
-	public static function getTable():string;
-	public static function getKey():string;
+    public function getReadConnection() : Connection;
+    public function getWriteConnection() : Connection;
+
+	public function getDriver();
+	public function getDatabase();
+	public function getTable();
+	public function getKey();
 }

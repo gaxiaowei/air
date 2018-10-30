@@ -12,7 +12,10 @@
     ],
     "require": {
         "php": ">=7.0.0",
-        "psr/container": "^1.0"
+        "psr/container": "^1.0",
+        "ext-pdo": "*",
+        "ext-ctype": "*",
+        "ext-mongodb": "*"
     },
     "autoload": {
         "psr-4": {

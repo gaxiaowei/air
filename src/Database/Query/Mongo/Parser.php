@@ -1,144 +1,184 @@
 <?php
-declare(strict_types=1);
-namespace aef\query\mongodb;
-class parser
+namespace Air\Database\Query\Mongo;
+
+class Parser
 {
-	private static $_index  = 0;
-	private static $_length = 0;
-	private static $_tokens = [];
+	private static $index  = 0;
+	private static $length = 0;
+	private static $tokens = [];
 
 	public static function parse(array $tokens)
 	{
-		static::$_index  = 0;
-		static::$_length = count($tokens);
-		static::$_tokens = $tokens;
+		static::$index  = 0;
+		static::$length = count($tokens);
+		static::$tokens = $tokens;
 
-		$tree = static::_tree();
-		if(!isset($tree['conds'][0])) { throw new \InvalidArgumentException('syntax error'); }
-		return count(current($tree['conds'][0]))===1 ? current(current($tree['conds'][0])) : $tree['conds'][0];
+		$tree = static::tree();
+		if (!isset($tree['conditions'][0])) {
+		    throw new \InvalidArgumentException('syntax error');
+		}
+
+		return count(current($tree['conditions'][0])) === 1 ? current(current($tree['conditions'][0])) : $tree['conditions'][0];
 	}
 
-	private static function _tree()
+	private static function tree()
 	{
-		$state   = 0;
-		$logical = '$and';
-		$conds   = [];
-		for(;static::$_index<static::$_length;static::$_index++) {
-			$token = static::$_tokens[static::$_index];
+        $state = 0;
+        $logical = '$and';
+        $conditions = [];
+
+		for (; static::$index < static::$length; static::$index++) {
+			$token = static::$tokens[static::$index];
+
 			switch($state) {
 				case 0 :
 					switch($token) {
 						case '(' :
-							static::$_index++;
-							$child = static::_tree();
-							$conds[][$child['logical']] = $child['conds'];
+							static::$index++;
+
+							$child = static::tree();
+                            $conditions[][$child['logical']] = $child['conditions'];
 							$state = 2;
 						break;
+
 						default :
 							$key = $token;
 						break;
 					}
 				break;
+
 				case 1 :
-					switch(strtolower($token)) {
+					switch (strtolower($token)) {
 						case '=' :
-							$oprts = '$eq';
+							$operate = '$eq';
 						break;
+
 						case '!=' :
-							$oprts = '$ne';
+                            $operate = '$ne';
 						break;
+
 						case '>' :
-							$oprts = '$gt';
+                            $operate = '$gt';
 						break;
+
 						case '>=' :
-							$oprts = '$gte';
+                            $operate = '$gte';
 						break;
+
 						case '<' :
-							$oprts = '$lt';
+                            $operate = '$lt';
 						break;
+
 						case '<=' :
-							$oprts = '$lte';
+                            $operate = '$lte';
 						break;
+
 						case 'like' :
-							$oprts = '$like';
+                            $operate = '$like';
 						break;
+
 						case 'regexp' :
-							$oprts = '$regex';
+                            $operate = '$regex';
 						break;
+
 						case 'near' :
-							$oprts = '$near';
+                            $operate = '$near';
 						break;
+
 						case 'in' :
-							if(isset($oprts) and $oprts==='not') {
-								$oprts = '$nin';
+							if (isset($operate) && $operate === 'not') {
+                                $operate = '$nin';
 							} else {
-								$oprts = '$in';
+                                $operate = '$in';
 							}
 						break;
+
 						case 'is' :
-							$oprts = 'is';
+                            $operate = 'is';
+
 							$state--;
 						break;
+
 						case 'not' :
-							if(isset($oprts) and $oprts==='is') {
-								$oprts = 'is not';
+							if (isset($operate) && $operate === 'is') {
+                                $operate = 'is not';
 							} else {
-								$oprts = 'not';
+                                $operate = 'not';
 							}
+
 							$state--;
 						break;
+
 						case 'null' :
-							static::$_index--;
-							if(isset($oprts) and $oprts==='is not') {
+							static::$index--;
+							if (isset($operate) && $operate === 'is not') {
 								$value = 1;
 							} else {
 								$value = 0;
 							}
-							$oprts = '$exists';
+
+                            $operate = '$exists';
 						break;
+
 						default :
 							throw new \InvalidArgumentException('syntax error');
 						break;
 					}
 				break;
+
 				case 2 :
-					switch(strtolower($token)) {
+					switch (strtolower($token)) {
 						case 'null' :
 						break;
+
 						case '?' :
 							$value = $token;
 						break;
+
 						default :
 							throw new \InvalidArgumentException('syntax error');
 						break;
 					}
-					$conds[] = $oprts==='$eq' ? [$key=>$value] : [$key=>[$oprts=>$value]];
+
+                    $conditions[] = $operate === '$eq' ? [$key => $value] : [$key => [$operate => $value]];
 				break;
+
 				case 3 :
-					switch(strtolower($token)) {
+					switch (strtolower($token)) {
 						case ')' :
-							return ['logical'=>$logical, 'conds'=>$conds];
+							return [
+							    'logical' => $logical,
+                                'conditions' => $conditions
+                            ];
 						break;
+
 						case 'and' :
 							$logical = '$and';
 							$state   = -1;
 						break;
+
 						case 'or' :
 							$logical = '$or';
 							$state   = -1;
 						break;
+
 						default :
 							throw new \InvalidArgumentException('syntax error');
 						break;
 					}
 				break;
+
 				default :
 					throw new \InvalidArgumentException('syntax error');
 				break;
 			}
+
 			$state++;
 		}
 
-		return ['logical'=>$logical, 'conds'=>$conds];
+		return [
+		    'logical' => $logical,
+            'conditions' => $conditions
+        ];
 	}
 }
