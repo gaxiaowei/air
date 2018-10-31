@@ -7,181 +7,216 @@ use Air\Database\Query\Mongo\Tokenizer;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\ObjectId;
 use MongoDB\Driver\BulkWrite;
-use MongoDB\Driver\Command;
 
-class Mongo implements Query
+class Mongo extends QueryCommon implements Query
 {
-    use QueryTrait;
-
-	private $where = [];
-	private $bind = [];
-	private $group = [];
-	private $having = [];
-
     public function insert(array $data)
 	{
+        if ($this->step >= 1) {
+            throw new \LogicException('syntax error');
+        }
+
         if (!isset($data['_id'])) {
             $data['_id'] = new ObjectID;
         } elseif (is_string($data['_id']) && strlen($data['_id']) === 24) {
             $data['_id'] = new ObjectID($data['_id']);
         }
 
-        $bulkWrite = new BulkWrite();
-        $bulkWrite->insert($data);
+        $this->type = static::INSERT;
+        $this->data = $data;
+        $this->step= 7;
 
-        $this->model->getWriteConnection()->executeBulkWrite(
-            $this->model->getDatabase().'.'.$this->model->getTable(),
-            $bulkWrite
-        );
-
-        return $data['_id'];
+        return $this;
 	}
 
 	public function update(array $data)
 	{
-		if (isset($data['_id'])) {
-			$key = $data['_id'];
-			unset($data['_id']);
+        if ($this->step >= 1) {
+            throw new \LogicException('syntax error');
+        }
 
-			return $this->where('_id = ?', [$key]);
-		} else {
-			$this->data  = $data;
+        $this->type = static::UPDATE;
 
-			return $this;
-		}
+        if(isset($data['_id'])) {
+            $key = $data['_id'];
+            unset($data['_id']);
+
+            $this->data = $data;
+
+            return $this->where('_id = ?', [$key]);
+        } else {
+            $this->data = $data;
+            $this->step = 2;
+
+            return $this;
+        }
 	}
 
 	public function delete($data = null)
 	{
-        if (is_array($data)) {
-            $this->where('_id in ?', [$data]);
-        } elseif (is_string($data)) {
-            $this->where('_id = ?', [$data]);
+        if ($this->step >= 1) {
+            throw new \LogicException('syntax error');
         }
 
-		return $this;
+        $this->type = static::DELETE;
+
+        if (isset($data['_id'])) {
+            return $this->where('_id=?', [$data['_id']]);
+        }
+
+        $this->step = 2;
+
+        return $this;
 	}
 
-	public function select(string $columns = '*')
+	public function select(string $columns = '*') : Query
+    {
+        if ($this->step >= 1) {
+            throw new \LogicException('syntax error', 2001);
+        }
+
+        if ($columns !== '*') {
+            $fields = explode(',', strtr($columns, ' ', ''));
+            $this->select = [];
+
+            foreach($fields as $field) {
+                $this->select[$field] = 1;
+            }
+        }
+
+        $this->step = 1;
+
+        return $this;
+    }
+
+    public function where($condition, array $bind = null) : Query
+    {
+        if ($this->step >= 3) {
+            throw new \LogicException('syntax error');
+        }
+
+        $bind = is_null($bind) ? [] : $bind;
+        $where = static::condition($condition, $bind);
+        $this->where = $where['condition'];
+        $this->whereParameters = $where['bind'];
+
+        $this->step = 3;
+
+        return $this;
+    }
+
+	public function group(string $fields) : Query
 	{
-		if (strpos($columns, '(') !== false &&
-            preg_match_all('/(?:,|^|\s)(avg|count|max|min|sum|distinct)\s*\(([^\(\)]+)\)\s*(?:as\s+([a-z0-9_]+))?/i', $columns, $matches)
-        ) {
-			$aggregate = [];
+        if ($this->step >= 4) {
+            throw new \LogicException('syntax error');
+        }
 
-			foreach ($matches[1] as $key => $function) {
-                $as = empty($matches[3][$key]) ? $function : $matches[3][$key];
-				$field = $matches[2][$key];
+        $group = [];
+        $fields = explode(',', strtr($fields, ' ', ''));
 
-				if ($function === 'count') {
-					$aggregate[$as] = ['$sum' => 1];
-				} elseif ($function === 'distinct') {
-					$aggregate[$as]  = ['$sum' => 1];
+        foreach ($fields as $field) {
+            $group[$field] = '$'.$field;
+        }
 
-					$this->group    = [$field => '$'.$field];
-					$this->distinct = $field;
-				} else {
-					$aggregate[$as]  = ["\${$function}"=>"\${$field}"];
-				}
-			}
+        $this->groupBy = $group;
+        $this->step = 4;
 
-			$this->aggregate = $aggregate;
-		} else {
-			if ($columns !== '*') {
-				$fields = explode(',', strtr($columns, [' ' => '']));
-
-				$this->columns = [];
-				foreach($fields as $field) {
-					$this->columns[$field] = true;
-				}
-			}
-		}
-
-		return $this;
+        return $this;
 	}
 
-	public function where($condition, $bind) : Query
+	public function having($condition, array $bind = null) : Query
 	{
-		$bind  = is_null($bind) ? [] : $bind;
-		$where = static::_condition($condition, $bind);
+        if ($this->step != 4) {
+            throw new \LogicException('syntax error');
+        }
 
-		$this->condition = $where['condition'];
-		$this->bind = $where['bind'];
+        $where = static::condition($condition, $bind);
+        $this->having = $where['condition'];
+        $this->havingParameters = is_null($bind) ? [] : $bind;
 
-		return $this;
+        $this->step = 5;
+
+        return $this;
 	}
 
-	public function group(string $fields)
-	{
-		$group  = [];
-		$fields = explode(',', strtr($fields, [' ' => '']));
-
-		foreach ($fields as $field) {
-			$group[$field] = '$'.$field;
-		}
-
-		$this->group = $group;
-
-		return $this;
-	}
-
-	public function having(string $condition, $bind)
-	{
-		$where = static::_condition($condition, $bind);
-
-		$this->having = $where['condition'];
-		$this->bind = is_null($bind) ? $this->bind : array_merge($this->bind, $bind);
-
-		return $this;
-	}
-
-	public function get(array $column = ['*'])
+	public function fetch()
     {
 
     }
 
-    public function find($id, array $column = ['*'])
+    public function fetchAll()
     {
 
     }
 
-    public function first(array $column = ['*'])
+    public function execute()
     {
+        $tree = $this->parse($this->where);
+        $where = $this->bind($tree, $this->whereParameters);
+        $bulkWrite = new BulkWrite();
+        $result = false;
 
+        switch ($this->type) {
+            case static::INSERT :
+                $bulkWrite->insert($this->data);
+
+                $result = $this->getModel()
+                    ->getWriteConnection()
+                    ->executeBulkWrite(
+                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $bulkWrite
+                    )->getInsertedCount();
+
+                $result = $result > 0 ? $this->data['_id'] : false;
+                break;
+
+            case static::UPDATE :
+                $bulkWrite->update(
+                    $where,
+                    ['$set' => $this->data],
+                    ['multi' => true]
+                );
+
+                $result = $this->getModel()
+                    ->getWriteConnection()
+                    ->executeBulkWrite(
+                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $bulkWrite
+                    )->getModifiedCount();
+
+                $result = $result > 0 ? $result : false;
+                break;
+
+            case static::DELETE :
+                $bulkWrite->delete(
+                    $where,
+                    ['limit' => 0]
+                );
+
+                $result = $this->getModel()
+                    ->getWriteConnection()
+                    ->executeBulkWrite(
+                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $bulkWrite
+                    )->getDeletedCount();
+
+                $result = $result > 0 ? $result : false;
+                break;
+        }
+
+        return $result;
     }
 
     private function parse($condition)
 	{
+	    if (!$condition) {
+	        return [];
+        }
+
 		$tokens = Tokenizer::tokenize($condition);
 		$tree = Parser::parse($tokens);
 
 		return $tree;
-	}
-
-    private function condition($condition, array $bind)
-	{
-		switch (gettype($condition)) {
-			case 'string' :
-					if (!ctype_alnum($condition)) {
-						break;
-					}
-			case 'integer':
-					$bind = [$condition];
-					$condition = '_id = ?';
-					break;
-			case 'array' :
-					$bind = [$condition];
-					$condition = '_id in(?)';
-					break;
-			default :
-					throw new \LogicException('syntax error');
-			break;
-		}
-
-		return [
-		    'condition' => $condition,
-            'bind' => $bind
-        ];
 	}
 
     private function bind(array &$tree, array &$bind = null)
@@ -219,11 +254,14 @@ class Mongo implements Query
 					$head   = substr($value, 0, 1);
 					$tail   = substr($value, -1);
 					$middle = substr($value, 1, -1);
+
 					$head   = $head === '%' ? '' : '^'.$head;
 					$tail   = $tail === '%' ? '' : $tail.'$';
 					$middle = str_replace('%', '.+', $middle);
 					$middle = str_replace('_', '.', $middle);
+
 					$value  = $head.$middle.$tail;
+
 					$key = '$regex';
                     $tree['$options'] = 'i';
 				} elseif ($key === '$near') {
@@ -245,7 +283,7 @@ class Mongo implements Query
 				}
 
 				$tree[$key] = $value;
-			} elseif ($key==='$exists') {
+			} elseif ($key === '$exists') {
 				continue;
 			} else {
 				throw new \LogicException('syntax error');
@@ -254,6 +292,34 @@ class Mongo implements Query
 
 		return $tree;
 	}
+
+    private function condition($condition, array $bind)
+    {
+        switch (gettype($condition)) {
+            case 'string' :
+                if (!ctype_alnum($condition)) {
+                    break;
+                }
+            case 'integer' :
+                $bind = [$condition];
+                $condition = '_id = ?';
+                break;
+
+            case 'array' :
+                $bind = [$condition];
+                $condition = '_id in (?)';
+                break;
+
+            default :
+                throw new \LogicException('syntax error');
+                break;
+        }
+
+        return [
+            'condition' => $condition,
+            'bind' => $bind
+        ];
+    }
 
 	private function stdToArray($result)
 	{
