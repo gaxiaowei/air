@@ -14,6 +14,8 @@ interface Query
 	public function orderAsc(string $field) : Query;
 	public function orderDesc(string $field) : Query;
 	public function limit(int $limit) : Query;
+	public function take(int $offset) : Query;
+	public function skip(int $offset) : Query;
 	public function offset(int $offset) : Query;
 	public function execute();
 	public function fetch();

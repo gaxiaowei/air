@@ -37,7 +37,7 @@ class Mongo extends QueryCommon implements Query
 
         $this->type = static::UPDATE;
 
-        if(isset($data['_id'])) {
+        if (isset($data['_id'])) {
             $key = $data['_id'];
             unset($data['_id']);
 
@@ -61,7 +61,7 @@ class Mongo extends QueryCommon implements Query
         $this->type = static::DELETE;
 
         if (isset($data['_id'])) {
-            return $this->where('_id=?', [$data['_id']]);
+            return $this->where('_id = ?', [$data['_id']]);
         }
 
         $this->step = 2;
@@ -141,12 +141,39 @@ class Mongo extends QueryCommon implements Query
 
 	public function fetch()
     {
-
+        return $this->skip(0)->take(1)->fetchAll();
     }
 
     public function fetchAll()
     {
+        $tree = $this->parse($this->where);
+        $where = $this->bind($tree, $this->whereParameters);
+        $result = [];
 
+        $query  = new \MongoDB\Driver\Query($where, [
+            'projection' => $this->select,
+            'skip' => $this->offset,
+            'limit' => $this->limit,
+            'sort' => $this->order
+        ]);
+        $cursor = $this->getModel()
+            ->getReadConnection()
+            ->executeQuery(
+                $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                $query
+            )->toArray();
+
+        foreach ($cursor as $row) {
+            $row = (array)$row;
+
+            if (isset($row['_id'])) {
+                $row['_id'] = strval($row['_id']);
+            }
+
+            $result[] = $this->stdToArray($row);
+        }
+
+        return $result;
     }
 
     public function execute()
