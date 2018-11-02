@@ -44,7 +44,7 @@ class Model implements \Air\Database\Model
 
     public function getReadConnection() : Connection
     {
-
+        return new Connection\Mongo();
     }
 
     public function getWriteConnection() : Connection

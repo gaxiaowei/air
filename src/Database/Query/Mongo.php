@@ -10,16 +10,22 @@ use MongoDB\Driver\BulkWrite;
 
 class Mongo extends QueryCommon implements Query
 {
-    public function insert(array $data)
+    public function insert(array $data) : Query
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
         }
 
-        if (!isset($data['_id'])) {
-            $data['_id'] = new ObjectID;
-        } elseif (is_string($data['_id']) && strlen($data['_id']) === 24) {
-            $data['_id'] = new ObjectID($data['_id']);
+        if (count($data) === count($data, COUNT_RECURSIVE)) {
+            $data = [$data];
+        }
+
+        foreach ($data as &$item) {
+            if (!isset($item['_id'])) {
+                $item['_id'] = new ObjectID;
+            } elseif (is_string($item['_id']) && strlen($item['_id']) === 24) {
+                $item['_id'] = new ObjectID($item['_id']);
+            }
         }
 
         $this->type = static::INSERT;
@@ -29,7 +35,7 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function update(array $data)
+	public function update(array $data) : Query
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
@@ -52,7 +58,7 @@ class Mongo extends QueryCommon implements Query
         }
 	}
 
-	public function delete($data = null)
+	public function delete(array $data = null) : Query
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
@@ -150,12 +156,25 @@ class Mongo extends QueryCommon implements Query
         $where = $this->bind($tree, $this->whereParameters);
         $result = [];
 
-        $query  = new \MongoDB\Driver\Query($where, [
-            'projection' => $this->select,
-            'skip' => $this->offset,
-            'limit' => $this->limit,
-            'sort' => $this->order
-        ]);
+        $options = [];
+        if (!is_null($this->select)) {
+            $options['projection'] = $this->select;
+        }
+
+        if (!is_null($this->offset)) {
+            $options['skip'] = $this->offset;
+        }
+
+        if (!is_null($this->limit)) {
+            $options['limit'] = $this->limit;
+        }
+
+        if (count($this->order) > 0) {
+            $options['sort'] = $this->order;
+        }
+
+        $query  = new \MongoDB\Driver\Query($where, $options);
+
         $cursor = $this->getModel()
             ->getReadConnection()
             ->executeQuery(
@@ -185,7 +204,10 @@ class Mongo extends QueryCommon implements Query
 
         switch ($this->type) {
             case static::INSERT :
-                $bulkWrite->insert($this->data);
+                foreach ($this->data as $data) {
+                    $bulkWrite->insert($data);
+                }
+                unset($data);
 
                 $result = $this->getModel()
                     ->getWriteConnection()
@@ -194,7 +216,9 @@ class Mongo extends QueryCommon implements Query
                         $bulkWrite
                     )->getInsertedCount();
 
-                $result = $result > 0 ? $this->data['_id'] : false;
+                $result = $result > 0
+                    ? count($this->data) === 1 ? strval($this->data[0]['_id']) : array_map('strval', array_column($this->data, '_id'))
+                    : false;
                 break;
 
             case static::UPDATE :
@@ -217,7 +241,7 @@ class Mongo extends QueryCommon implements Query
             case static::DELETE :
                 $bulkWrite->delete(
                     $where,
-                    ['limit' => 0]
+                    ['limit' => false]
                 );
 
                 $result = $this->getModel()

@@ -1,20 +1,20 @@
 <?php
 require __DIR__.'/../vendor/autoload.php';
 
-$model = new class extends \Air\Database\Model\Model
+$userModel = new class extends \Air\Database\Model\Model
 {
     protected $driver = 'mongo';
     protected $database = 'demo';
     protected $table = 'users';
 };
 
-$where[] = [
+$result = $userModel::query()
+    ->skip(0)
+    ->limit(10)
+    ->orderDesc('_id')
+    ->fetchAll();
 
-];
-
-//$model::query()
-//    ->where('a', '123123')
-//    ->where('b', 'abc');
+print_r($result);
 
 exit;
 /**! 全局对象 DI容器对象 所有的依赖通过它寻找 !**/

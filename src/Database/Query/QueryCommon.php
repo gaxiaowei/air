@@ -17,8 +17,8 @@ abstract class QueryCommon
     protected $groupBy = '';
     protected $having = '';
     protected $order = [];
-    protected $offset = 0;
-    protected $limit = 0;
+    protected $offset = null;
+    protected $limit = null;
 
     protected $whereParameters = [];
     protected $havingParameters = [];
@@ -37,6 +37,10 @@ abstract class QueryCommon
 
     public function order(string $field, string $direction = 'ASC') : Query
     {
+        if (false !== strrpos(get_class($this), 'Mongo')) {
+            $direction = strtolower($direction)==='asc' ? 1 : -1;
+        }
+
         $this->order[$field] = $direction;
 
         return $this;
