@@ -4,9 +4,7 @@ namespace Air\Database\Query;
 use Air\Database\Query;
 use Air\Database\Query\Mongo\Parser;
 use Air\Database\Query\Mongo\Tokenizer;
-use MongoDB\BSON\Binary;
 use MongoDB\BSON\ObjectId;
-use MongoDB\Driver\BulkWrite;
 
 class Mongo extends QueryCommon implements Query
 {
@@ -28,7 +26,7 @@ class Mongo extends QueryCommon implements Query
             }
         }
 
-        $this->type = static::INSERT;
+        $this->type = strtoupper(__FUNCTION__);
         $this->data = $data;
         $this->step= 7;
 
@@ -41,7 +39,7 @@ class Mongo extends QueryCommon implements Query
             throw new \LogicException('syntax error');
         }
 
-        $this->type = static::UPDATE;
+        $this->type = strtoupper(__FUNCTION__);
 
         if (isset($data['_id'])) {
             $key = $data['_id'];
@@ -64,7 +62,7 @@ class Mongo extends QueryCommon implements Query
             throw new \LogicException('syntax error');
         }
 
-        $this->type = static::DELETE;
+        $this->type = strtoupper(__FUNCTION__);
 
         if (isset($data['_id'])) {
             return $this->where('_id = ?', [$data['_id']]);
@@ -145,117 +143,24 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function fetch()
+	public function queryBuild() : \Air\Database\QueryBuild
     {
-        return $this->skip(0)->take(1)->fetchAll();
-    }
+        $where = $this->parse($this->where);
+        $having = $this->parse($this->having);
 
-    public function fetchAll()
-    {
-        $tree = $this->parse($this->where);
-        $where = $this->bind($tree, $this->whereParameters);
-        $result = [];
+        $queryBuild = new QueryBuild();
+        $queryBuild->setAttribute('field', $this->select);
+        $queryBuild->setAttribute('where', $this->bind($where, $this->whereParameters));
+        $queryBuild->setAttribute('group', $this->groupBy);
+        $queryBuild->setAttribute('having', $this->bind($having, $this->havingParameters));
+        $queryBuild->setAttribute('offset', $this->offset);
+        $queryBuild->setAttribute('limit', $this->limit);
+        $queryBuild->setAttribute('order', $this->order);
 
-        $options = [];
-        if (!is_null($this->select)) {
-            $options['projection'] = $this->select;
-        }
+        $queryBuild->setAttribute('action', $this->type);
+        $queryBuild->setAttribute('data', $this->data);
 
-        if (!is_null($this->offset)) {
-            $options['skip'] = $this->offset;
-        }
-
-        if (!is_null($this->limit)) {
-            $options['limit'] = $this->limit;
-        }
-
-        if (count($this->order) > 0) {
-            $options['sort'] = $this->order;
-        }
-
-        $query  = new \MongoDB\Driver\Query($where, $options);
-
-        $cursor = $this->getModel()
-            ->getReadConnection()
-            ->executeQuery(
-                $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
-                $query
-            )->toArray();
-
-        foreach ($cursor as $row) {
-            $row = (array)$row;
-
-            if (isset($row['_id'])) {
-                $row['_id'] = strval($row['_id']);
-            }
-
-            $result[] = $this->stdToArray($row);
-        }
-
-        return $result;
-    }
-
-    public function execute()
-    {
-        $tree = $this->parse($this->where);
-        $where = $this->bind($tree, $this->whereParameters);
-        $bulkWrite = new BulkWrite();
-        $result = false;
-
-        switch ($this->type) {
-            case static::INSERT :
-                foreach ($this->data as $data) {
-                    $bulkWrite->insert($data);
-                }
-                unset($data);
-
-                $result = $this->getModel()
-                    ->getWriteConnection()
-                    ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
-                        $bulkWrite
-                    )->getInsertedCount();
-
-                $result = $result > 0
-                    ? count($this->data) === 1 ? strval($this->data[0]['_id']) : array_map('strval', array_column($this->data, '_id'))
-                    : false;
-                break;
-
-            case static::UPDATE :
-                $bulkWrite->update(
-                    $where,
-                    ['$set' => $this->data],
-                    ['multi' => true]
-                );
-
-                $result = $this->getModel()
-                    ->getWriteConnection()
-                    ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
-                        $bulkWrite
-                    )->getModifiedCount();
-
-                $result = $result > 0 ? $result : false;
-                break;
-
-            case static::DELETE :
-                $bulkWrite->delete(
-                    $where,
-                    ['limit' => false]
-                );
-
-                $result = $this->getModel()
-                    ->getWriteConnection()
-                    ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
-                        $bulkWrite
-                    )->getDeletedCount();
-
-                $result = $result > 0 ? $result : false;
-                break;
-        }
-
-        return $result;
+        return $queryBuild;
     }
 
     private function parse($condition)
@@ -371,43 +276,4 @@ class Mongo extends QueryCommon implements Query
             'bind' => $bind
         ];
     }
-
-	private function stdToArray($result)
-	{
-		$array = [];
-
-		foreach ($result as $key => $value) {
-			if (is_object($value)) {
-				switch (get_class($value)) {
-                    case 'stdClass' :
-                        $value = $this->{__FUNCTION__}($value);
-                        break;
-
-					case 'MongoDB\BSON\ObjectID' :
-                        $value = strval($value);
-                        break;
-
-					case 'MongoDB\BSON\Timestamp' :
-                        $time = strval($value);
-                        $value = intval(substr($time, strpos($time, ':')  +1, -1));
-                        break;
-
-					case 'MongoDB\BSON\UTCDateTime' :
-					    $value = strval($value);
-                        break;
-
-					case 'MongoDB\BSON\Binary' :
-					    /**@var $value Binary**/
-					    $value = $value->getData();
-                        break;
-				}
-			} elseif (is_array($value)) {
-			    $value = $this->{__FUNCTION__}($value);
-            }
-
-			$array[$key] = $value;
-		}
-
-		return $array;
-	}
 }

@@ -3,7 +3,8 @@ namespace Air\Database;
 
 interface Model
 {
-    public static function query();
+    public static function query() : Query;
+    public static function process() : Process;
 
     public function getReadConnection() : Connection;
     public function getWriteConnection() : Connection;

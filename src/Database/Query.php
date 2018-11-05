@@ -17,10 +17,6 @@ interface Query
 	public function take(int $offset) : Query;
 	public function skip(int $offset) : Query;
 	public function offset(int $offset) : Query;
-	public function execute();
-	public function fetch();
-	public function fetchAll();
 
-    public function setModel(Model $mode);
-    public function getModel() : Model;
+	public function QueryBuild() : QueryBuild;
 }
