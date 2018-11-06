@@ -1,30 +1,30 @@
 <?php
-namespace Air\Database\Process;
+namespace Air\Database\Call;
 
-use Air\Database\Model;
-use Air\Database\Process;
-use Air\Database\QueryBuild;
+use Air\Database\ICall;
+use Air\Database\IConnection;
+use Air\Database\Query\IBuilder;
 use MongoDB\BSON\Binary;
 use MongoDB\Driver\BulkWrite;
 
-class Mongo implements Process
+class Mongo implements ICall
 {
-    /**@var $model Model*/
-    private $model;
+    /**@var $model IConnection*/
+    private $connection;
 
-    /**@var $query QueryBuild**/
-    private $queryBuild;
+    /**@var $query IBuilder**/
+    private $builder;
 
-    public function __construct(Model $model = null, QueryBuild $queryBuild = null)
+    public function __construct(IConnection $connection = null, IBuilder $builder = null)
     {
-        $this->model = $model;
-        $this->queryBuild = $queryBuild;
+        $this->connection = $connection;
+        $this->builder = $builder;
     }
 
     public function fetch()
     {
-        $this->queryBuild->setAttribute('limit', 0);
-        $this->queryBuild->setAttribute('offset', 1);
+        $this->getBuilder()->setAttribute('limit', 0);
+        $this->getBuilder()->setAttribute('offset', 1);
 
         return $this->fetchAll()[0] ?? [];
     }
@@ -38,10 +38,9 @@ class Mongo implements Process
             $this->getOptions()
         );
 
-        $cursor = $this->getModel()
-            ->getReadConnection()
+        $cursor = $this->getConnection()
             ->executeQuery(
-                $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                $this->getBuilder()->getDatabase().'.'.$this->getBuilder()->getTable(),
                 $query
             )->toArray();
 
@@ -59,18 +58,17 @@ class Mongo implements Process
         $bulkWrite = new BulkWrite();
         $result = false;
 
-        switch ($this->getQueryBuild()->getAction()) {
+        switch ($this->getBuilder()->getAction()) {
             case 'INSERT' :
-                $inserts = $this->getQueryBuild()->getData();
+                $inserts = $this->getBuilder()->getData();
                 foreach ($inserts as $data) {
                     $bulkWrite->insert($data);
                 }
                 unset($data);
 
-                $result = $this->getModel()
-                    ->getWriteConnection()
+                $result = $this->getConnection()
                     ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $this->getBuilder()->getDatabase().'.'.$this->getBuilder()->getTable(),
                         $bulkWrite
                     )->getInsertedCount();
 
@@ -82,14 +80,13 @@ class Mongo implements Process
             case 'UPDATE' :
                 $bulkWrite->update(
                     $this->getWhere(),
-                    ['$set' => $this->queryBuild->getData()],
+                    ['$set' => $this->getBuilder()->getData()],
                     ['multi' => true]
                 );
 
-                $result = $this->getModel()
-                    ->getWriteConnection()
+                $result = $this->getConnection()
                     ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $this->getBuilder()->getDatabase().'.'.$this->getBuilder()->getTable(),
                         $bulkWrite
                     )->getModifiedCount();
 
@@ -102,10 +99,9 @@ class Mongo implements Process
                     ['limit' => false]
                 );
 
-                $result = $this->getModel()
-                    ->getWriteConnection()
+                $result = $this->getConnection()
                     ->executeBulkWrite(
-                        $this->getModel()->getDatabase().'.'.$this->getModel()->getTable(),
+                        $this->getBuilder()->getDatabase().'.'.$this->getBuilder()->getTable(),
                         $bulkWrite
                     )->getDeletedCount();
 
@@ -116,52 +112,52 @@ class Mongo implements Process
         return $result;
     }
 
-    public function getModel() : Model
+    public function getConnection() : IConnection
     {
-        return $this->model;
+        return $this->connection;
     }
 
-    public function setModel(Model $model) : Process
+    public function setConnection(IConnection $connection) : ICall
     {
-        $this->model = $model;
+        $this->connection = $connection;
 
         return $this;
     }
 
-    public function setQueryBuild(QueryBuild $queryBuild) : Process
+    public function setBuilder(IBuilder $builder) : ICall
     {
-        $this->queryBuild = $queryBuild;
+        $this->builder = $builder;
 
         return $this;
     }
 
-    public function getQueryBuild() : QueryBuild
+    public function getBuilder() : IBuilder
     {
-        return $this->queryBuild;
+        return $this->builder;
     }
 
     private function getWhere()
     {
-        return $this->getQueryBuild()->getWhere();
+        return $this->getBuilder()->getWhere();
     }
 
     private function getOptions()
     {
         $options = [];
-        if (!is_null($this->getQueryBuild()->getField())) {
-            $options['projection'] = $this->getQueryBuild()->getField();
+        if (!is_null($this->getBuilder()->getField())) {
+            $options['projection'] = $this->getBuilder()->getField();
         }
 
-        if (!is_null($this->getQueryBuild()->getOffset())) {
-            $options['skip'] = $this->getQueryBuild()->getOffset();
+        if (!is_null($this->getBuilder()->getOffset())) {
+            $options['skip'] = $this->getBuilder()->getOffset();
         }
 
-        if (!is_null($this->getQueryBuild()->getLimit())) {
-            $options['limit'] = $this->getQueryBuild()->getLimit();
+        if (!is_null($this->getBuilder()->getLimit())) {
+            $options['limit'] = $this->getBuilder()->getLimit();
         }
 
-        if (count($this->getQueryBuild()->getOrder()) > 0) {
-            $options['sort'] = $this->getQueryBuild()->getOrder();
+        if (count($this->getBuilder()->getOrder()) > 0) {
+            $options['sort'] = $this->getBuilder()->getOrder();
         }
 
         return $options;

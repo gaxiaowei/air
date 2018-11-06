@@ -1,74 +1,90 @@
 <?php
 namespace Air\Database\Model;
 
-use Air\Database\Connection;
-use Air\Database\Process;
-use Air\Database\Query;
+use Air\Database\ICall;
+use Air\Database\IConnection;
+use Air\Database\IModel;
+use Air\Database\IQuery;
+use Air\Database\Query\IBuilder;
 
-class Model implements \Air\Database\Model
+class Model implements IModel
 {
-    private static $instance = null;
-    protected static $query = [];
-    protected static $process = [];
+    protected static $instance = null;
+    protected static $queryInstance = [];
+    protected static $connectionInstance = [];
+    protected static $callInstance = [];
 
     protected $driver;
-    protected $connection;
 
-    protected $database;
-    protected $table;
-    protected $key;
+    protected $database = '';
+    protected $table = '';
+    protected $key = '';
 
-    public static function query() : Query
+    public static function query() : IQuery
     {
-        $className = dirname(__NAMESPACE__) . '\\Query\\' . ucfirst(static::newSelf()->getDriver());
-        if (!isset(static::$query[static::class])) {
-            static::$query[static::class] = new $className(static::newSelf());
+        $className = static::getDriverClassName();
+        if (!isset(static::$queryInstance[static::class])) {
+            static::$queryInstance[static::class] = new $className;
         }
 
-        return static::$query[static::class];
+        static::$queryInstance[static::class]
+            ->setDatabase(static::newSelf()->getDatabase())
+            ->setTable(static::newSelf()->getTable())
+            ->setKey(static::newSelf()->getKey());
+
+        return static::$queryInstance[static::class];
     }
 
-    public static function process() : Process
+    public static function connection(IConnection $connection = null) : IModel
     {
-        $query = static::query()->queryBuild();
-        unset(static::$query[static::class]);
-
-        $className =  dirname(__NAMESPACE__).'\\Process\\'.ucfirst(static::newSelf()->getDriver());
-        if (!isset(static::$process[static::class])) {
-            static::$process[static::class] = new $className(static::newSelf(), $query);
+        if (is_null($connection)) {
+            $className = static::getConnectionClassName();
+            if (!isset(static::$connectionInstance[static::class])) {
+                static::$connectionInstance[static::class] = new $className;
+            }
+        } else {
+            static::$connectionInstance[static::class] = $connection;
         }
 
-        return static::$process[static::class];
+        return static::newSelf();
     }
 
-    public function getDriver()
+    public static function call(IConnection $connection = null, IBuilder $builder = null) : ICall
     {
-        return static::newSelf()->driver;
+        $className = static::getCallClassName();
+
+        if (is_null($connection)) {
+            $connection = static::getConnection();
+        }
+
+        if (is_null($builder)) {
+            $builder = static::query()->build();
+        }
+
+        if (!isset(static::$callInstance[static::class])) {
+            static::$callInstance[static::class] = new $className;
+        }
+
+        static::$callInstance[static::class]
+            ->setConnection($connection)
+            ->setBuilder($builder);
+
+        return static::$callInstance[static::class];
     }
 
-    public function getDatabase()
+    private function getDatabase() : string
     {
         return static::newSelf()->database;
     }
 
-    public function getTable()
+    private function getTable() : string
     {
         return static::newSelf()->table;
     }
 
-    public function getKey()
+    private function getKey() : string
     {
         return static::newSelf()->key;
-    }
-
-    public function getReadConnection() : Connection
-    {
-        return new Connection\Mongo();
-    }
-
-    public function getWriteConnection() : Connection
-    {
-        return new Connection\Mongo();
     }
 
     public static function newSelf()
@@ -78,5 +94,37 @@ class Model implements \Air\Database\Model
         }
 
         return self::$instance;
+    }
+
+    public static function getDriver() : string
+    {
+        return static::newSelf()->driver;
+    }
+
+    public static function getConnection() : IConnection
+    {
+        static::connection();
+
+        return static::$connectionInstance[static::class];
+    }
+
+    private static function getDatabaseRootDir()
+    {
+        return dirname(__NAMESPACE__);
+    }
+
+    private static function getDriverClassName()
+    {
+        return static::getDatabaseRootDir() . '\\Query\\' . ucfirst(static::newSelf()->getDriver());
+    }
+
+    private static function getCallClassName()
+    {
+        return static::getDatabaseRootDir() . '\\Call\\' . ucfirst(static::newSelf()->getDriver());
+    }
+
+    private static function getConnectionClassName()
+    {
+        return static::getDatabaseRootDir() . '\\Connection\\' . ucfirst(static::newSelf()->getDriver());
     }
 }

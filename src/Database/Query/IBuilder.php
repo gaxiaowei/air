@@ -1,8 +1,11 @@
 <?php
-namespace Air\Database;
+namespace Air\Database\Query;
 
-interface QueryBuild
+interface IBuilder
 {
+    public function getDatabase();
+    public function getTable();
+    public function getKey();
     public function getField();
     public function getWhere();
     public function getGroup();

@@ -16,9 +16,9 @@ for ($i = 0; $i < 1000; $i++) {
     ];
 }
 
+$user::query()->insert($insert);
 
-$user::query()->delete($insert);
-$result = $user::process()->execute();
+$user::call()->execute();
 
 $t2 = microtime(true);
 

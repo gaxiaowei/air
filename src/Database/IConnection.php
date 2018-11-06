@@ -1,7 +1,7 @@
 <?php
 namespace Air\Database;
 
-interface Connection
+interface IConnection
 {
 	public function begin() : bool;
 	public function commit() : bool;

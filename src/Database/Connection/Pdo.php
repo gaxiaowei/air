@@ -1,9 +1,9 @@
 <?php
 namespace Air\Database\Connection;
 
-use Air\Database\Connection;
+use Air\Database\IConnection;
 
-class Mysql implements Connection
+class Pdo implements IConnection
 {
     private $connection = null;
 
@@ -27,7 +27,12 @@ class Mysql implements Connection
 
 	}
 
-	public function __destruct()
+	public function __call($name, $arguments)
+    {
+
+    }
+
+    public function __destruct()
     {
         unset($this->connection);
     }

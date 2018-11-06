@@ -1,9 +1,9 @@
 <?php
 namespace Air\Database\Connection;
 
-use Air\Database\Connection;
+use Air\Database\IConnection;
 
-class Mongo implements Connection
+class Mongo implements IConnection
 {
     private $connection = null;
 

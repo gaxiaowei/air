@@ -1,8 +1,25 @@
 <?php
-namespace Air\Database\Query;
+namespace Air\Database\Query\Common;
 
-class QueryBuild implements \Air\Database\QueryBuild
+use Air\Database\Query\IBuilder;
+
+class Build implements IBuilder
 {
+    public function getDatabase()
+    {
+        return $this->database ?? '';
+    }
+
+    public function getTable()
+    {
+        return $this->table ?? '';
+    }
+
+    public function getKey()
+    {
+        return $this->key ?? '';
+    }
+
     public function getField()
     {
         return $this->field ?? null;

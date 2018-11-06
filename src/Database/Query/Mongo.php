@@ -1,14 +1,18 @@
 <?php
 namespace Air\Database\Query;
 
-use Air\Database\Query;
+use Air\Database\IQuery;
+use Air\Database\Query\Common\Build;
+use Air\Database\Query\Common\Methods;
 use Air\Database\Query\Mongo\Parser;
 use Air\Database\Query\Mongo\Tokenizer;
 use MongoDB\BSON\ObjectId;
 
-class Mongo extends QueryCommon implements Query
+class Mongo implements IQuery
 {
-    public function insert(array $data) : Query
+    use Methods;
+
+    public function insert(array $data) : IQuery
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
@@ -33,7 +37,7 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function update(array $data) : Query
+	public function update(array $data) : IQuery
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
@@ -56,7 +60,7 @@ class Mongo extends QueryCommon implements Query
         }
 	}
 
-	public function delete(array $data = null) : Query
+	public function delete(array $data = null) : IQuery
 	{
         if ($this->step >= 1) {
             throw new \LogicException('syntax error');
@@ -73,10 +77,10 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function select(string $columns = '*') : Query
+	public function select(string $columns = '*') : IQuery
     {
         if ($this->step >= 1) {
-            throw new \LogicException('syntax error', 2001);
+            throw new \LogicException('syntax error');
         }
 
         if ($columns !== '*') {
@@ -93,7 +97,7 @@ class Mongo extends QueryCommon implements Query
         return $this;
     }
 
-    public function where($condition, array $bind = null) : Query
+    public function where($condition, array $bind = null) : IQuery
     {
         if ($this->step >= 3) {
             throw new \LogicException('syntax error');
@@ -109,7 +113,7 @@ class Mongo extends QueryCommon implements Query
         return $this;
     }
 
-	public function group(string $fields) : Query
+	public function group(string $fields) : IQuery
 	{
         if ($this->step >= 4) {
             throw new \LogicException('syntax error');
@@ -128,7 +132,7 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function having($condition, array $bind = null) : Query
+	public function having($condition, array $bind = null) : IQuery
 	{
         if ($this->step != 4) {
             throw new \LogicException('syntax error');
@@ -143,12 +147,17 @@ class Mongo extends QueryCommon implements Query
         return $this;
 	}
 
-	public function queryBuild() : \Air\Database\QueryBuild
+	public function build() : IBuilder
     {
         $where = $this->parse($this->where);
         $having = $this->parse($this->having);
 
-        $queryBuild = new QueryBuild();
+        $queryBuild = new Build;
+
+        $queryBuild->setAttribute('database', $this->database);
+        $queryBuild->setAttribute('table', $this->table);
+        $queryBuild->setAttribute('key', $this->key);
+
         $queryBuild->setAttribute('field', $this->select);
         $queryBuild->setAttribute('where', $this->bind($where, $this->whereParameters));
         $queryBuild->setAttribute('group', $this->groupBy);
@@ -159,6 +168,8 @@ class Mongo extends QueryCommon implements Query
 
         $queryBuild->setAttribute('action', $this->type);
         $queryBuild->setAttribute('data', $this->data);
+
+        $this->reset();
 
         return $queryBuild;
     }
