@@ -1,54 +1,16 @@
 <?php
-class WebSocketServer
-{
-        private $ws;
-        private $events = [];
-        private $sockets = [];
 
-        public function __construct()
-        {
-                $this->ws = new Swoole\WebSocket\Server("0:0:0:0", 8777);
+use Swoole\Http\Request;
+use Swoole\Http\Response;
 
-                $this->ws->on('open', [$this, 'open']);
-                $this->ws->on('message', [$this, 'message']);
-                $this->ws->on('close', [$this, 'close']);
+$server = new \Swoole\Http\Server("0:0:0:0", 8777);
 
-        }
+$server->set([
+    'worker_num' => 3
+]);
 
-        public function start()
-        {
-                $this->ws->start();
-        }
+$server->on('request', function (Request $request, Response $response) {
+    $response->end('hello world');
+});
 
-        public function on($event, Closure $closure)
-        {
-                $this->events[$event] = $closure;
-
-                return $this;
-        }
-
-        public function open(Swoole\WebSocket\Server $server, $req)
-        {
-
-        }
-
-        public function message(Swoole\WebSocket\Server $server, $frame)
-        {
-
-                //$server->push($frame->fd, json_encode(["hello", "world"]));
-        }
-
-        public function close(Swoole\WebSocket\Server $server, $fd)
-        {
-                echo "connection close: {$fd}\n";
-        }
-}
-
-(new WebSocketServer())
-        ->on('connection', function($socket) {
-                $socket->emit('news', json_encode(['hello' => 'world']));
-                $socket->on('unread', function ($data) {
-                        echo $data;
-                });
-        })
-        ->start();
+$server->start();

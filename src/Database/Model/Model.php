@@ -72,21 +72,6 @@ class Model implements IModel
         return static::$callInstance[static::class];
     }
 
-    private function getDatabase() : string
-    {
-        return static::newSelf()->database;
-    }
-
-    private function getTable() : string
-    {
-        return static::newSelf()->table;
-    }
-
-    private function getKey() : string
-    {
-        return static::newSelf()->key;
-    }
-
     public static function newSelf()
     {
         if (is_null(self::$instance)) {
@@ -108,23 +93,41 @@ class Model implements IModel
         return static::$connectionInstance[static::class];
     }
 
-    private static function getDatabaseRootDir()
+    private function getDatabase() : string
     {
-        return dirname(__NAMESPACE__);
+        return static::newSelf()->database;
+    }
+
+    private function getTable() : string
+    {
+        return static::newSelf()->table;
+    }
+
+    private function getKey() : string
+    {
+        return static::newSelf()->key;
+    }
+
+    private static function getDatabaseNameSpace()
+    {
+        $namespace = __NAMESPACE__;
+        $last = strrpos($namespace, '\\');
+
+        return substr($namespace, 0, $last);
     }
 
     private static function getDriverClassName()
     {
-        return static::getDatabaseRootDir() . '\\Query\\' . ucfirst(static::newSelf()->getDriver());
+        return static::getDatabaseNameSpace() . '\\Query\\' . ucfirst(static::newSelf()->getDriver());
     }
 
     private static function getCallClassName()
     {
-        return static::getDatabaseRootDir() . '\\Call\\' . ucfirst(static::newSelf()->getDriver());
+        return static::getDatabaseNameSpace() . '\\Call\\' . ucfirst(static::newSelf()->getDriver());
     }
 
     private static function getConnectionClassName()
     {
-        return static::getDatabaseRootDir() . '\\Connection\\' . ucfirst(static::newSelf()->getDriver());
+        return static::getDatabaseNameSpace() . '\\Connection\\' . ucfirst(static::newSelf()->getDriver());
     }
 }
