@@ -3,6 +3,7 @@ namespace Air;
 
 use Air\Kernel\Container\Container;
 use Air\Kernel\Loader\ClassLoader;
+use Noodlehaus\Config;
 
 class Air extends Container
 {
@@ -48,6 +49,22 @@ class Air extends Container
 
     /**
      * @return string
+     */
+    public function getConfigPath()
+    {
+        return $this->root.DIRECTORY_SEPARATOR.'config';
+    }
+
+    /**
+     * @return string
+     */
+    public function getAppPath()
+    {
+        return $this->root.DIRECTORY_SEPARATOR.'/app';
+    }
+
+    /**
+     * @return string
      * @throws \Exception
      */
     public function getComposerPath()
@@ -62,16 +79,17 @@ class Air extends Container
 
     /**
      * 向Container注册基础绑定
-     * @return void
      */
     private function registerBaseBinds()
     {
         static::setInstance($this);
 
         $this->instance(Container::class, $this);
+        $this->instance(static::class, $this);
         $this->alias('app', Container::class);
 
         $this->singleton(ClassLoader::class);
+        $this->instance('config', new Config($this->getConfigPath()));
     }
 
     /**

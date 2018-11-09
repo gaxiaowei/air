@@ -15,7 +15,9 @@
         "psr/container": "^1.0",
         "ext-pdo": "*",
         "ext-ctype": "*",
-        "ext-mongodb": "*"
+        "ext-mongodb": "*",
+        "ext-json":"*",
+        "hassankhan/config": "^2.0"
     },
     "autoload": {
         "psr-4": {
