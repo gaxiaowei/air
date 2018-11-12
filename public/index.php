@@ -1,11 +1,9 @@
 <?php
 require __DIR__.'/../vendor/autoload.php';
 
-$air = new Air\Air(realpath(__DIR__.'/../'));
-
 try {
-    $tcp = $air->make(Air\Server\Protocol::class);
-    $tcp->run();
+    $air = new Air\Air(realpath(__DIR__.'/../'));
+    $air->make(\Air\Service\Server\Protocol::class)->run();
 } catch (Exception $exception) {
     var_dump($exception);
 }

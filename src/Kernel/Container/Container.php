@@ -171,7 +171,7 @@ class Container implements \ArrayAccess, ContainerInterface
     public function build($concrete)
     {
         if ($concrete instanceof Closure) {
-            return $concrete($this, $this->bindingArgs);
+            return $concrete($this, array_pop($this->bindingArgs));
         }
 
         try {
@@ -300,6 +300,10 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function resolvePrimitive(ReflectionParameter $parameter)
     {
+        if (count($this->bindingArgs) > 0) {
+            return array_pop($this->bindingArgs);
+        }
+
         if ($parameter->isDefaultValueAvailable()) {
             return $parameter->getDefaultValue();
         }
