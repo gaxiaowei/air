@@ -43,7 +43,7 @@ class Container implements \ArrayAccess, ContainerInterface
      * 实例化服务目标参数
      * @var array
      */
-    private $bindingArgs = [];
+    private $with = [];
 
     /**
      * 构建绑定实例依赖的参数
@@ -141,7 +141,7 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /** 保存参数 **/
-        $this->bindingArgs[$abstract] = $parameters;
+        $this->with[] = $parameters;
 
         $concrete = $this->getBuildClosure($abstract);
         if ($this->isBuildable($concrete, $abstract)) {
@@ -156,7 +156,7 @@ class Container implements \ArrayAccess, ContainerInterface
         }
 
         /** 删除保存参数 **/
-        unset($this->bindingArgs[$abstract]);
+        array_pop($this->with);
 
         return $object;
     }
@@ -171,7 +171,7 @@ class Container implements \ArrayAccess, ContainerInterface
     public function build($concrete)
     {
         if ($concrete instanceof Closure) {
-            return $concrete($this, array_pop($this->bindingArgs));
+            return $concrete($this, $this->getLastParameterOverride());
         }
 
         try {
@@ -253,6 +253,40 @@ class Container implements \ArrayAccess, ContainerInterface
     }
 
     /**
+     * 获取对象绑定参数
+     * @return array|mixed
+     */
+    protected function getLastParameterOverride()
+    {
+        return count($this->with) ? end($this->with) : [];
+    }
+
+    /**
+     * 判断参数是否存在
+     * @param $dependency
+     * @param int $position
+     * @return bool
+     */
+    protected function hasParameterOverride($dependency, $position = 0)
+    {
+        return array_key_exists($dependency->name, $this->getLastParameterOverride()) ||
+            isset($this->getLastParameterOverride()[$position]);
+    }
+
+    /**
+     * 获取参数
+     * @param $dependency
+     * @param int $position
+     * @return bool
+     */
+    protected function getParameterOverride($dependency, $position = 0)
+    {
+        return isset($this->getLastParameterOverride()[$dependency->name])
+            ? $this->getLastParameterOverride()[$dependency->name]
+            : $this->getLastParameterOverride()[$position];
+    }
+
+    /**
      * 解决依赖
      * @param array $dependencies
      * @return array
@@ -263,10 +297,16 @@ class Container implements \ArrayAccess, ContainerInterface
     {
         $results = [];
 
-        foreach ($dependencies as $dependency) {
-            $results[] = is_null($dependency->getClass())
-                ? $this->resolvePrimitive($dependency)
-                : $this->resolveClass($dependency);
+        foreach ($dependencies as $index => $dependency) {
+            if (is_null($dependency->getClass())) {
+                if ($this->hasParameterOverride($dependency, $index)) {
+                    $results[] = $this->getParameterOverride($dependency, $index);
+                } else {
+                    $results[] = $this->resolvePrimitive($dependency);
+                }
+            } else {
+                $results[] = $this->resolveClass($dependency);
+            }
         }
 
         return $results;
@@ -300,10 +340,6 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function resolvePrimitive(ReflectionParameter $parameter)
     {
-        if (count($this->bindingArgs) > 0) {
-            return array_pop($this->bindingArgs);
-        }
-
         if ($parameter->isDefaultValueAvailable()) {
             return $parameter->getDefaultValue();
         }

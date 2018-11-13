@@ -63,6 +63,11 @@ class Air extends Container
         return $this->root.DIRECTORY_SEPARATOR.'/app';
     }
 
+    public function getRoutesPath()
+    {
+        return $this->root.DIRECTORY_SEPARATOR.'/routes';
+    }
+    
     /**
      * @return string
      * @throws \Exception

@@ -1,8 +1,6 @@
 <?php
 namespace Air\Kernel\Routing;
 
-use Psr\Container\ContainerInterface;
-
 /**
  * Class Router
  * @package Air\Kernel\Routing
@@ -25,20 +23,9 @@ class Router
     const SEPARATOR = '/';
     const PARAMETER = '*';
 
-    /**
-     * Ioc容器
-     * @var ContainerInterface
-     */
-    private $container;
-
     private $tree = [];
 
     private $groupStack = [];
-
-    public function __construct(ContainerInterface $container = null)
-    {
-        $this->container = $container;
-    }
 
     public function add($method, $path, $callback, $middleware = [])
     {

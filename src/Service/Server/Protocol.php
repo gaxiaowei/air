@@ -130,37 +130,37 @@ class Protocol
         /**@var $httpKernel Kernel**/
         $httpKernel = $this->air->make(Kernel::class);
 
-        /**@var $httpRequest \Symfony\Component\HttpFoundation\Request**/
+        /**! 处理http头字段大小写问题 !**/
+        $server = array_change_key_case($request->server, CASE_UPPER);
+        foreach ($request->header as $key => $val) {
+            $server[sprintf('HTTP_%s', strtoupper(strtr($key, '-', '_')))] = $val;
+        }
+
+        /**@var $httpRequest \Air\Kernel\Logic\Handle\Request**/
         $httpRequest = $this->air->make('request', [
             $request->get ?? [],
             $request->post ?? [],
             [],
             $request->cookie ?? [],
             $request->files ?? [],
-            $request->server ?? [],
+            $server,
             $request->rawContent() ?? null
         ]);
+        unset($server);
 
-        /**@var $httpResponse \Symfony\Component\HttpFoundation\Response**/
+        /**@var $httpResponse \Air\Kernel\Logic\Handle\Response**/
         $httpResponse = $httpKernel->handle($httpRequest);
 
-        /** 发送header **/
-        foreach ($httpResponse->headers->allPreserveCaseWithoutCookies() as $key => $val) {
-            $response->header($key, array_pop($val));
-        }
-
-        /** 发送cookie **/
-        foreach ($httpResponse->headers->getCookies() as $key => $val) {
-
-        }
-
+        /**! response 响应!**/
         $response->status($httpResponse->getStatusCode());
+        foreach ($httpResponse->headers->allPreserveCase() as $key => $values) {
+            foreach ($values as $val) {
+                $response->header($key, $val);
+            }
+        }
+
         $response->end($httpResponse->getContent());
-
         $httpKernel->terminate($httpRequest, $httpResponse);
-        unset($httpKernel);
-
-        var_dump($this->air);
     }
 
     /**
@@ -220,17 +220,11 @@ class Protocol
      * worker 进程启动
      * @param Server $server
      * @param $workerId
-     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
-     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException
      */
     public function workerStart(Server $server, $workerId)
     {
         if (!$server->taskworker) {
             $this->setProcessName('php worker process');
-
-            if (true === $this->air->make('config')->get('protocol.http.enable')) {
-                $this->air->singleton(Kernel::class);
-            }
         } else {
             $this->setProcessName('php task process');
         }
