@@ -1,21 +1,24 @@
 <?php
 namespace Air\Kernel\Logic;
 
-use Air\Kernel\Container\Container;
-use Air\Kernel\InjectAir;
+use Air\Air;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
+use Air\Kernel\Routing\Router;
 use Air\Kernel\Routing\RouterDispatch;
 use Air\Pipeline\Pipeline;
 
 class Handler implements IHandler
 {
-    use InjectAir;
+    /**
+     * @var Air
+     */
+    protected $air;
 
     /**
-     * @var Container || null
+     * @var Router
      */
-    protected $container = null;
+    protected $router;
 
     /**
      * 全局中间件
@@ -30,6 +33,17 @@ class Handler implements IHandler
     protected $bootstraps = [
         \App\Boot\RouteConfigLoad::class
     ];
+
+    /**
+     * Handler constructor.
+     * @param Air $air
+     * @param Router $router
+     */
+    public function __construct(Air $air, Router $router)
+    {
+        $this->air = $air;
+        $this->router = $router;
+    }
 
     /**
      * 请求初始化
@@ -75,6 +89,14 @@ class Handler implements IHandler
     public function terminate(Request $request, Response $response)
     {
 
+    }
+
+    /**
+     * @return Air
+     */
+    public function getAir() : Air
+    {
+        return $this->air;
     }
 
     /**

@@ -2,6 +2,7 @@
 namespace Air\Kernel\Routing;
 
 use Air\Air;
+use Air\Kernel\Logic\Handle\Request;
 
 class RouterDispatch
 {
@@ -12,8 +13,8 @@ class RouterDispatch
         $this->air = $air;
     }
 
-    public function run()
+    public function run(Request $request)
     {
-        
+        $router = $this->air->make('router');
     }
 }
