@@ -31,7 +31,7 @@ trait InjectAir
      * 容器对象
      * @return mixed
      */
-    protected static function getAir() : Air
+    public static function getAir() : Air
     {
         return static::$air;
     }

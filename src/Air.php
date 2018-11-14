@@ -2,7 +2,6 @@
 namespace Air;
 
 use Air\Kernel\Container\Container;
-use Air\Kernel\Loader\ClassLoader;
 use Noodlehaus\Config;
 
 class Air extends Container
@@ -28,6 +27,8 @@ class Air extends Container
         $this->setPath($path);
 
         $this->registerBaseBinds();
+
+        $this->registerCoreAliases();
     }
 
     /**
@@ -63,27 +64,16 @@ class Air extends Container
         return $this->root.DIRECTORY_SEPARATOR.'/app';
     }
 
+    /**
+     * @return string
+     */
     public function getRoutesPath()
     {
         return $this->root.DIRECTORY_SEPARATOR.'/routes';
     }
-    
-    /**
-     * @return string
-     * @throws \Exception
-     */
-    public function getComposerPath()
-    {
-        $path = $this->root.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'composer';
-        if (!file_exists($path)) {
-            throw new \Exception('The composer is not initialized');
-        }
-
-        return $path;
-    }
 
     /**
-     * 向Container注册基础绑定
+     * 注册基础服务绑定
      */
     private function registerBaseBinds()
     {
@@ -91,53 +81,29 @@ class Air extends Container
 
         $this->instance(Container::class, $this);
         $this->instance(static::class, $this);
-        $this->alias('app', Container::class);
 
-        $this->singleton(ClassLoader::class);
         $this->instance('config', new Config($this->getConfigPath()));
+
+        $this->singleton(\Air\Kernel\Routing\Router::class);
+
+        $this->instance('router.api.last.modify.time', 0);
+        $this->instance('router.rpc.last.modify.time', 0);
     }
 
     /**
-     * 注册自动加载类方法
+     * 注册核心的服务别名
      */
-    private function registerClassLoader()
+    public function registerCoreAliases()
     {
-        /**@var $classLoader \Air\Kernel\Loader\ClassLoader*/
-        $classLoader = $this->make(ClassLoader::class);
-
-        $composerPath = $this->getComposerPath();
-
-        if (file_exists($path = $composerPath.DIRECTORY_SEPARATOR.'autoload_namespaces.php')) {
-            $psr0 = $classLoader->requireFile($path);
-            if ($psr0) {
-                foreach ($psr0 as $prefix => $dirs) {
-                    $classLoader->setPrefixPsr0($prefix, $dirs);
-                }
-            }
-
-            unset($psr0);
-        }
-
-        if (file_exists($path = $composerPath.DIRECTORY_SEPARATOR.'autoload_psr4.php')) {
-            $psr4 = $classLoader->requireFile($path);
-            if ($psr4) {
-                foreach ($psr4 as $prefix => $dirs) {
-                    $classLoader->setPrefixPsr4($prefix, $dirs);
-                }
-            }
-
-            unset($psr4);
-        }
-
-        if (file_exists($path = $composerPath.DIRECTORY_SEPARATOR.'autoload_files.php')) {
-            $files = $classLoader->requireFile($path);
-            if ($files) {
-                foreach ($files as $filePath) {
-                    $classLoader->requireFile($filePath);
-                }
-            }
-
-            unset($files, $path, $filePath);
+        foreach ([
+            'app' => \Air\Kernel\Container\Container::class,
+            'request' => \Air\Kernel\Logic\Handle\Request::class,
+            'response' => \Air\Kernel\Logic\Handle\Response::class,
+            'router' => \Air\Kernel\Routing\Router::class,
+            'protocol' => \Air\Service\Server\Protocol::class,
+            'pipeline' => \Air\Pipeline\Pipeline::class
+        ] as $key => $alias) {
+            $this->alias($key, $alias);
         }
     }
 }

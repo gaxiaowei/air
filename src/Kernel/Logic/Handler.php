@@ -1,19 +1,21 @@
 <?php
 namespace Air\Kernel\Logic;
 
-use Air\Air;
+use Air\Kernel\Container\Container;
+use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
-use Air\Kernel\Routing\Router;
 use Air\Kernel\Routing\RouterDispatch;
 use Air\Pipeline\Pipeline;
 
 class Handler implements IHandler
 {
+    use InjectAir;
+
     /**
-     * @var Air
+     * @var Container || null
      */
-    protected $air;
+    protected $container = null;
 
     /**
      * 全局中间件
@@ -21,22 +23,25 @@ class Handler implements IHandler
      */
     protected $middleware = [];
 
-    public function __construct(Air $air)
-    {
-        $this->air = $air;
-
-        /**! 注册别名 !**/
-        $this->air->alias('request', Request::class);
-        $this->air->alias('response', Response::class);
-        $this->air->alias('router', Router::class);
-    }
+    /**
+     * 启动项
+     * @var array
+     */
+    protected $bootstraps = [
+        \App\Boot\RouteConfigLoad::class
+    ];
 
     /**
      * 请求初始化
+     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
+     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException]
      */
     public function bootstrap()
     {
-
+        /**! 顺序执行启动项 !**/
+        foreach ($this->bootstraps as $boot) {
+            static::getAir()->make($boot)->bootstrap(static::getAir());
+        }
     }
 
     /**
@@ -53,24 +58,23 @@ class Handler implements IHandler
         try {
             $response = $this->sendRequestThroughRouter($request);
         } catch (\Exception $e) {
-            var_dump($e);
+
         } catch (\Throwable $e) {
-            var_dump($e);
+
         }
 
-        return $this->air->make('response', ['Hello World']);
+        return static::getAir()->make('response', ['Hello World']);
     }
 
     /**
      * 请求结束
-     * 做一些变量销毁工作、资源释放
+     * 做一些变量销毁、资源释放
      * @param Request $request
      * @param Response $response
      */
     public function terminate(Request $request, Response $response)
     {
-        $this->air->offsetUnset(Request::class);
-        $this->air->offsetUnset(Response::class);
+
     }
 
     /**
@@ -82,7 +86,7 @@ class Handler implements IHandler
     {
         return (new Pipeline($this->getAir()))
             ->send($request)
-            ->through($this->middleware)
+            ->through($this->middleware ?? [])
             ->then($this->dispatchToRouter());
     }
 
@@ -95,14 +99,5 @@ class Handler implements IHandler
         return function ($request) {
             return $this->getAir()->make(RouterDispatch::class)->run($request);
         };
-    }
-
-    /**
-     * 容器对象
-     * @return Air
-     */
-    public function getAir() : Air
-    {
-        return $this->air;
     }
 }

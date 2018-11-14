@@ -2,15 +2,18 @@
 namespace Air\Service\Server;
 
 use Air\Air;
+use Air\Kernel\Logic\Handle\Request;
+use Air\Kernel\Logic\Handle\Response;
 use App\Http\Kernel;
-use Swoole\Http\Request;
-use Swoole\Http\Response;
-use Swoole\Server;
+use Swoole\Http\Request as SwRequest;
+use Swoole\Http\Response as SwResponse;
+use Swoole\Server as TcpServer;
+use Swoole\Http\Server as HttpServer;
 
 class Protocol
 {
     /**
-     * @var Server
+     * @var TcpServer
      */
     private $protocol = null;
     private $air = null;
@@ -28,48 +31,44 @@ class Protocol
     {
         $config = $this->air->make('config');
 
-        /**! 开启Tcp服务 !**/
-        if ($config->get('protocol.tcp.enable')) {
-            $set = $config->get('server.set') +
-                $this->air->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
+        /**! 开启Http服务 !**/
+        if ($config->get('protocol.http.enable')) {
+            $set = $config->get('server.set');
 
-            $this->protocol = new Server(
-                $config->get('protocol.tcp.bind'),
-                $config->get('protocol.tcp.port')
+            $this->protocol = new HttpServer(
+                $config->get('protocol.http.bind'),
+                $config->get('protocol.http.port')
             );
 
             $this->protocol->set($set);
-
-            $this->protocol->on('connect',     [$this, 'connect']);
-            $this->protocol->on('close',       [$this, 'close']);
-            $this->protocol->on('receive',     [$this, 'receive']);
-            $this->protocol->on('packet',      [$this, 'packet']);
+            $this->protocol->on('request', [$this, 'request']);
         }
 
-        /**! 开启Http服务 !**/
-        if ($config->get('protocol.http.enable')) {
-            $set = ['open_http_protocol' => true];
+        /**! 开启Tcp服务 !**/
+        if ($config->get('protocol.tcp.enable')) {
+            $set = $this->air->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
 
             if (is_null($this->protocol)) {
-                $http = $this->protocol = new Server(
-                    $config->get('protocol.http.bind'),
-                    $config->get('protocol.http.port')
+                $tcpPort = $this->protocol = new TcpServer(
+                    $config->get('protocol.tcp.bind'),
+                    $config->get('protocol.tcp.port')
                 );
 
-                $set = $config->get('server.set') + $set;
+                $set = $set + $config->get('server.set');
             } else {
-                $http = $this->protocol->addListener(
-                    $config->get('protocol.http.bind'),
-                    $config->get('protocol.http.port'),
+                $tcpPort = $this->protocol->addListener(
+                    $config->get('protocol.tcp.bind'),
+                    $config->get('protocol.tcp.port'),
                     SWOOLE_SOCK_TCP
                 );
             }
 
-            $http->set($set);
-            $http->on('request', [$this, 'request']);
-
-            unset($http, $set, $config);
+            $tcpPort->set($set);
+            $tcpPort->on('connect',     [$this, 'connect']);
+            $tcpPort->on('close',       [$this, 'close']);
+            $tcpPort->on('receive',     [$this, 'receive']);
         }
+        unset($config, $tcpPort, $set);
 
         $this->registerCommonEvent();
 
@@ -77,49 +76,45 @@ class Protocol
     }
 
     /**
-     * @param Server $server
+     * @param TcpServer $server
      * @param $fd
      * @param $reactorId
      */
-    public function connect(Server $server, $fd, $reactorId)
+    public function connect(TcpServer $server, $fd, $reactorId)
     {
 
     }
 
     /**
      * 连接关闭
-     * @param Server $server
+     * @param TcpServer $server
      * @param $fd
      */
-    public function close(Server $server, $fd)
+    public function close(TcpServer $server, $fd)
     {
 
     }
 
     /**
-     * Tcp 消息处理
+     * tcp 请求处理
+     * @param TcpServer $server
+     * @param $fd
+     * @param $reactorId
+     * @param $data
      */
-    public function receive()
-    {
-
-    }
-
-    /**
-     * UDP协议接收消息
-     */
-    public function packet()
+    public function receive(TcpServer $server, $fd, $reactorId, $data)
     {
 
     }
 
     /**
      * http 请求处理
-     * @param Request $request
-     * @param Response $response
+     * @param SwRequest $request
+     * @param SwResponse $response
      * @throws \Air\Kernel\Container\Exception\BindingResolutionException
      * @throws \Air\Kernel\Container\Exception\EntryNotFoundException
      */
-    public function request(Request $request, Response $response)
+    public function request(SwRequest $request, SwResponse $response)
     {
         if ($request->server['request_uri'] === '/favicon.ico') {
             $response->status(404);
@@ -137,7 +132,7 @@ class Protocol
         }
 
         /**@var $httpRequest \Air\Kernel\Logic\Handle\Request**/
-        $httpRequest = $this->air->make('request', [
+        $httpRequest = $this->air->make(Request::class, [
             $request->get ?? [],
             $request->post ?? [],
             [],
@@ -148,7 +143,7 @@ class Protocol
         ]);
         unset($server);
 
-        /**@var $httpResponse \Air\Kernel\Logic\Handle\Response**/
+        /**@var $httpResponse Response**/
         $httpResponse = $httpKernel->handle($httpRequest);
 
         /**! response 响应!**/
@@ -218,10 +213,10 @@ class Protocol
 
     /**
      * worker 进程启动
-     * @param Server $server
+     * @param TcpServer $server
      * @param $workerId
      */
-    public function workerStart(Server $server, $workerId)
+    public function workerStart(TcpServer $server, $workerId)
     {
         if (!$server->taskworker) {
             $this->setProcessName('php worker process');
