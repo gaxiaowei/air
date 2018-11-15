@@ -8,13 +8,13 @@ use Air\Air;
  * Trait InjectAir
  * @package Air\Kernel
  */
-trait InjectAir
+abstract class InjectAir
 {
     /**
      * 容器对象
      * @var Air
      */
-    protected static $air;
+    private static $air;
 
     /**
      * InjectAir constructor.
@@ -22,8 +22,8 @@ trait InjectAir
      */
     public function __construct(Air $air)
     {
-        if (!static::$air) {
-            static::$air = $air;
+        if (!self::$air) {
+            self::$air = $air;
         }
     }
 
@@ -31,8 +31,8 @@ trait InjectAir
      * 容器对象
      * @return mixed
      */
-    public static function getAir() : Air
+    final public static function getAir() : Air
     {
-        return static::$air;
+        return self::$air;
     }
 }

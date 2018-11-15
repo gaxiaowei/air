@@ -2,7 +2,6 @@
 namespace Air;
 
 use Air\Kernel\Container\Container;
-use Noodlehaus\Config;
 
 class Air extends Container
 {
@@ -81,13 +80,6 @@ class Air extends Container
 
         $this->instance(Container::class, $this);
         $this->instance(static::class, $this);
-
-        $this->instance('config', new Config($this->getConfigPath()));
-
-        $this->singleton(\Air\Kernel\Routing\Router::class);
-
-        $this->instance('router.api.last.modify.time', 0);
-        $this->instance('router.rpc.last.modify.time', 0);
     }
 
     /**
@@ -100,7 +92,8 @@ class Air extends Container
             'request' => \Air\Kernel\Logic\Handle\Request::class,
             'response' => \Air\Kernel\Logic\Handle\Response::class,
             'router' => \Air\Kernel\Routing\Router::class,
-            'protocol' => \Air\Service\Server\Protocol::class,
+            'router.dispatch' => \Air\Kernel\Routing\RouterDispatch::class,
+            'protocol' => \Air\Service\Server\Sw::class,
             'pipeline' => \Air\Pipeline\Pipeline::class
         ] as $key => $alias) {
             $this->alias($key, $alias);

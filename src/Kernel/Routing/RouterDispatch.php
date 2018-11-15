@@ -1,20 +1,13 @@
 <?php
 namespace Air\Kernel\Routing;
 
-use Air\Air;
+use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 
-class RouterDispatch
+class RouterDispatch extends InjectAir
 {
-    private $air;
-
-    public function __construct(Air $air)
+    public function run(Router $router, Request $request)
     {
-        $this->air = $air;
-    }
 
-    public function run(Request $request)
-    {
-        $router = $this->air->make('router');
     }
 }

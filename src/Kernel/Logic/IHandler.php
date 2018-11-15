@@ -11,5 +11,5 @@ interface IHandler
     public function handle(Request $request) : Response;
     public function terminate(Request $request, Response $response);
 
-    public function getAir() : Air;
+    public static function getAir() : Air;
 }

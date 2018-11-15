@@ -1,7 +1,7 @@
 <?php
 namespace Air\Service\Server;
 
-use Air\Air;
+use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
 use App\Http\Kernel;
@@ -10,53 +10,48 @@ use Swoole\Http\Response as SwResponse;
 use Swoole\Server as TcpServer;
 use Swoole\Http\Server as HttpServer;
 
-class Protocol
+class Sw extends InjectAir implements IServer
 {
     /**
      * @var TcpServer
      */
-    private $protocol = null;
-    private $air = null;
-
-    public function __construct(Air $air)
-    {
-        $this->air = $air;
-    }
+    private $sw = null;
 
     /**
-     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
-     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException
+     * @throws \Exception
      */
     public function run()
     {
-        $config = $this->air->make('config');
+        define('SW', true);
+
+        $config = static::getAir()->make('config');
 
         /**! 开启Http服务 !**/
         if ($config->get('protocol.http.enable')) {
             $set = $config->get('server.set');
 
-            $this->protocol = new HttpServer(
+            $this->sw = new HttpServer(
                 $config->get('protocol.http.bind'),
                 $config->get('protocol.http.port')
             );
 
-            $this->protocol->set($set);
-            $this->protocol->on('request', [$this, 'request']);
+            $this->sw->set($set);
+            $this->sw->on('request', [$this, 'request']);
         }
 
         /**! 开启Tcp服务 !**/
         if ($config->get('protocol.tcp.enable')) {
-            $set = $this->air->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
+            $set = static::getAir()->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
 
-            if (is_null($this->protocol)) {
-                $tcpPort = $this->protocol = new TcpServer(
+            if (is_null($this->sw)) {
+                $tcpPort = $this->sw = new TcpServer(
                     $config->get('protocol.tcp.bind'),
                     $config->get('protocol.tcp.port')
                 );
 
                 $set = $set + $config->get('server.set');
             } else {
-                $tcpPort = $this->protocol->addListener(
+                $tcpPort = $this->sw->addListener(
                     $config->get('protocol.tcp.bind'),
                     $config->get('protocol.tcp.port'),
                     SWOOLE_SOCK_TCP
@@ -70,9 +65,9 @@ class Protocol
         }
         unset($config, $tcpPort, $set);
 
-        $this->registerCommonEvent();
+        $this->registerCommonCallback();
 
-        $this->protocol->start();
+        $this->sw->start();
     }
 
     /**
@@ -111,8 +106,7 @@ class Protocol
      * http 请求处理
      * @param SwRequest $request
      * @param SwResponse $response
-     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
-     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException
+     * @throws \Exception
      */
     public function request(SwRequest $request, SwResponse $response)
     {
@@ -123,8 +117,8 @@ class Protocol
         }
 
         /**@var $httpKernel Kernel**/
-        $httpKernel = $this->air->make(Kernel::class);
-
+        $httpKernel = new Kernel(static::getAir(), static::getAir()->make('router'));
+        var_dump($httpKernel::getAir());
         /**! 处理http头字段大小写问题 !**/
         $server = array_change_key_case($request->server, CASE_UPPER);
         foreach ($request->header as $key => $val) {
@@ -132,21 +126,20 @@ class Protocol
         }
 
         /**@var $httpRequest \Air\Kernel\Logic\Handle\Request**/
-        $httpRequest = $this->air->make(Request::class, [
-            $request->get ?? [],
+        $httpRequest = new Request($request->get ?? [],
             $request->post ?? [],
             [],
             $request->cookie ?? [],
             $request->files ?? [],
             $server,
             $request->rawContent() ?? null
-        ]);
+        );
         unset($server);
 
         /**@var $httpResponse Response**/
         $httpResponse = $httpKernel->handle($httpRequest);
 
-        /**! response 响应!**/
+        /**! response !**/
         $response->status($httpResponse->getStatusCode());
         foreach ($httpResponse->headers->allPreserveCase() as $key => $values) {
             foreach ($values as $val) {
@@ -156,6 +149,8 @@ class Protocol
 
         $response->end($httpResponse->getContent());
         $httpKernel->terminate($httpRequest, $httpResponse);
+
+        unset($httpKernel, $httpRequest, $httpResponse);
     }
 
     /**
@@ -258,23 +253,23 @@ class Protocol
         }
     }
 
-    private function registerCommonEvent()
+    private function registerCommonCallback()
     {
-        if (!is_null($this->protocol)) {
-            $this->protocol->on('start',    [$this, 'start']);
-            $this->protocol->on('shutdown', [$this, 'shutdown']);
+        if (!is_null($this->sw)) {
+            $this->sw->on('start',    [$this, 'start']);
+            $this->sw->on('shutdown', [$this, 'shutdown']);
 
-            $this->protocol->on('workerStart',  [$this, 'workerStart']);
-            $this->protocol->on('workerStop',   [$this, 'workerStop']);
-            $this->protocol->on('workerExit',   [$this, 'workerExit']);
-            $this->protocol->on('workerError',  [$this, 'workerError']);
+            $this->sw->on('workerStart',  [$this, 'workerStart']);
+            $this->sw->on('workerStop',   [$this, 'workerStop']);
+            $this->sw->on('workerExit',   [$this, 'workerExit']);
+            $this->sw->on('workerError',  [$this, 'workerError']);
 
-            $this->protocol->on('task',     [$this, 'task']);
-            $this->protocol->on('finish',   [$this, 'finish']);
+            $this->sw->on('task',     [$this, 'task']);
+            $this->sw->on('finish',   [$this, 'finish']);
 
-            $this->protocol->on('pipeMessage',  [$this, 'pipeMessage']);
-            $this->protocol->on('managerStart', [$this, 'managerStart']);
-            $this->protocol->on('managerStop',  [$this, 'managerStop']);
+            $this->sw->on('pipeMessage',  [$this, 'pipeMessage']);
+            $this->sw->on('managerStart', [$this, 'managerStart']);
+            $this->sw->on('managerStop',  [$this, 'managerStop']);
         }
     }
 }

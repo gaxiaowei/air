@@ -2,19 +2,14 @@
 namespace Air\Kernel\Logic;
 
 use Air\Air;
+use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
 use Air\Kernel\Routing\Router;
-use Air\Kernel\Routing\RouterDispatch;
 use Air\Pipeline\Pipeline;
 
-class Handler implements IHandler
+class Handler extends InjectAir implements IHandler
 {
-    /**
-     * @var Air
-     */
-    protected $air;
-
     /**
      * @var Router
      */
@@ -34,21 +29,17 @@ class Handler implements IHandler
         \App\Boot\RouteConfigLoad::class
     ];
 
-    /**
-     * Handler constructor.
-     * @param Air $air
-     * @param Router $router
-     */
     public function __construct(Air $air, Router $router)
     {
-        $this->air = $air;
+
+        parent::__construct($air);
+        unset($air);
         $this->router = $router;
     }
 
     /**
      * 请求初始化
-     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
-     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException]
+     * @throws \Exception
      */
     public function bootstrap()
     {
@@ -62,8 +53,7 @@ class Handler implements IHandler
      * 请求执行
      * @param Request $request
      * @return Response|mixed
-     * @throws \Air\Kernel\Container\Exception\BindingResolutionException
-     * @throws \Air\Kernel\Container\Exception\EntryNotFoundException
+     * @throws \Exception
      */
     public function handle(Request $request) : Response
     {
@@ -77,7 +67,7 @@ class Handler implements IHandler
 
         }
 
-        return static::getAir()->make('response', ['Hello World']);
+        return (new Response('Hello World'))->prepare($request);
     }
 
     /**
@@ -89,14 +79,6 @@ class Handler implements IHandler
     public function terminate(Request $request, Response $response)
     {
 
-    }
-
-    /**
-     * @return Air
-     */
-    public function getAir() : Air
-    {
-        return $this->air;
     }
 
     /**
@@ -119,7 +101,7 @@ class Handler implements IHandler
     protected function dispatchToRouter()
     {
         return function ($request) {
-            return $this->getAir()->make(RouterDispatch::class)->run($request);
+            return $this->getAir()->make('router.dispatch')->run($this->router, $request);
         };
     }
 }
