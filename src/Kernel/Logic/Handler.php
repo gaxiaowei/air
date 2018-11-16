@@ -31,9 +31,8 @@ class Handler extends InjectAir implements IHandler
 
     public function __construct(Air $air, Router $router)
     {
+        parent::__construct($this->clone($air));
 
-        parent::__construct($air);
-        unset($air);
         $this->router = $router;
     }
 
@@ -45,7 +44,7 @@ class Handler extends InjectAir implements IHandler
     {
         /**! 顺序执行启动项 !**/
         foreach ($this->bootstraps as $boot) {
-            static::getAir()->make($boot)->bootstrap(static::getAir());
+            $this->getAir()->make($boot)->bootstrap($this->getAir());
         }
     }
 
@@ -58,6 +57,7 @@ class Handler extends InjectAir implements IHandler
     public function handle(Request $request) : Response
     {
         $this->bootstrap();
+        $this->getAir()->instance('request', $request);
 
         try {
             $response = $this->sendRequestThroughRouter($request);
@@ -103,5 +103,22 @@ class Handler extends InjectAir implements IHandler
         return function ($request) {
             return $this->getAir()->make('router.dispatch')->run($this->router, $request);
         };
+    }
+
+    /**
+     * 处理Sw协程共享变量问题 在Ng中不会
+     * @param Air $obj
+     * @return Air
+     */
+    private function clone(Air $obj)
+    {
+        if (!defined('SW')) {
+            return $obj;
+        }
+
+        $air = clone $obj;
+        $air->registerBaseBinds();
+
+        return $air;
     }
 }

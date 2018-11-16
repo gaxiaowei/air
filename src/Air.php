@@ -72,31 +72,31 @@ class Air extends Container
     }
 
     /**
-     * 注册基础服务绑定
-     */
-    private function registerBaseBinds()
-    {
-        static::setInstance($this);
-
-        $this->instance(Container::class, $this);
-        $this->instance(static::class, $this);
-    }
-
-    /**
      * 注册核心的服务别名
      */
     public function registerCoreAliases()
     {
         foreach ([
-            'app' => \Air\Kernel\Container\Container::class,
-            'request' => \Air\Kernel\Logic\Handle\Request::class,
-            'response' => \Air\Kernel\Logic\Handle\Response::class,
-            'router' => \Air\Kernel\Routing\Router::class,
-            'router.dispatch' => \Air\Kernel\Routing\RouterDispatch::class,
-            'protocol' => \Air\Service\Server\Sw::class,
-            'pipeline' => \Air\Pipeline\Pipeline::class
+             'app' => \Air\Kernel\Container\Container::class,
+             'request' => \Air\Kernel\Logic\Handle\Request::class,
+             'response' => \Air\Kernel\Logic\Handle\Response::class,
+             'router' => \Air\Kernel\Routing\Router::class,
+             'router.dispatch' => \Air\Kernel\Routing\RouterDispatch::class,
+             'protocol' => \Air\Service\Server\Sw::class,
+             'pipeline' => \Air\Pipeline\Pipeline::class
         ] as $key => $alias) {
             $this->alias($key, $alias);
         }
+    }
+
+    /**
+     * 注册基础服务绑定
+     */
+    public function registerBaseBinds()
+    {
+        static::setInstance($this);
+
+        $this->instance(Container::class, $this);
+        $this->instance(static::class, $this);
     }
 }

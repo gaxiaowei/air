@@ -18,7 +18,7 @@ $air->singleton(\Air\Kernel\Routing\Router::class);
 
 /**! 配置 !**/
 $air->singleton('config', function(\Air\Air $air) {
-    return $air->make(\Noodlehaus\Config::class, [$air->getConfigPath()]);
+    return $air->make(\Noodlehaus\Config::class, $air->getConfigPath());
 });
 
 return $air;

@@ -1,6 +1,7 @@
 <?php
 namespace Air\Service\Server;
 
+use Air\Air;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
@@ -10,12 +11,22 @@ use Swoole\Http\Response as SwResponse;
 use Swoole\Server as TcpServer;
 use Swoole\Http\Server as HttpServer;
 
-class Sw extends InjectAir implements IServer
+class Sw implements IServer
 {
     /**
      * @var TcpServer
      */
     private $sw = null;
+
+    /**
+     * @var Air
+     */
+    private $air;
+
+    public function __construct(Air $air)
+    {
+        $this->air = $air;
+    }
 
     /**
      * @throws \Exception
@@ -24,7 +35,7 @@ class Sw extends InjectAir implements IServer
     {
         define('SW', true);
 
-        $config = static::getAir()->make('config');
+        $config = $this->getAir()->make('config');
 
         /**! 开启Http服务 !**/
         if ($config->get('protocol.http.enable')) {
@@ -41,7 +52,7 @@ class Sw extends InjectAir implements IServer
 
         /**! 开启Tcp服务 !**/
         if ($config->get('protocol.tcp.enable')) {
-            $set = static::getAir()->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
+            $set = $this->getAir()->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
 
             if (is_null($this->sw)) {
                 $tcpPort = $this->sw = new TcpServer(
@@ -117,8 +128,8 @@ class Sw extends InjectAir implements IServer
         }
 
         /**@var $httpKernel Kernel**/
-        $httpKernel = new Kernel(static::getAir(), static::getAir()->make('router'));
-        var_dump($httpKernel::getAir());
+        $httpKernel = new Kernel($this->getAir(), $this->getAir()->make('router'));
+
         /**! 处理http头字段大小写问题 !**/
         $server = array_change_key_case($request->server, CASE_UPPER);
         foreach ($request->header as $key => $val) {
@@ -149,8 +160,6 @@ class Sw extends InjectAir implements IServer
 
         $response->end($httpResponse->getContent());
         $httpKernel->terminate($httpRequest, $httpResponse);
-
-        unset($httpKernel, $httpRequest, $httpResponse);
     }
 
     /**
@@ -271,5 +280,14 @@ class Sw extends InjectAir implements IServer
             $this->sw->on('managerStart', [$this, 'managerStart']);
             $this->sw->on('managerStop',  [$this, 'managerStop']);
         }
+    }
+
+    public function getAir()
+    {
+        if ($this instanceof InjectAir) {
+            return parent::getAir();
+        }
+
+        return $this->air;
     }
 }

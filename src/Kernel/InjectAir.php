@@ -14,7 +14,7 @@ abstract class InjectAir
      * 容器对象
      * @var Air
      */
-    private static $air;
+    protected static $air;
 
     /**
      * InjectAir constructor.
@@ -31,7 +31,7 @@ abstract class InjectAir
      * 容器对象
      * @return mixed
      */
-    final public static function getAir() : Air
+    final public function getAir() : Air
     {
         return self::$air;
     }
