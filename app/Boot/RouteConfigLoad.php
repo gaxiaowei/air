@@ -16,7 +16,8 @@ class RouteConfigLoad
      */
     public function bootstrap(Air $air)
     {
-        $air->make('router');
+        $router = $air->make('router');
+        include $air->getRoutesPath(). '/api.php';
     }
 
     protected function getApiLastModifyTime(Air $air)

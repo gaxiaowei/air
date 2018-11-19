@@ -42,7 +42,6 @@ class Handler extends InjectAir implements IHandler
      */
     public function bootstrap()
     {
-        /**! 顺序执行启动项 !**/
         foreach ($this->bootstraps as $boot) {
             $this->getAir()->make($boot)->bootstrap($this->getAir());
         }
@@ -56,18 +55,16 @@ class Handler extends InjectAir implements IHandler
      */
     public function handle(Request $request) : Response
     {
-        $this->bootstrap();
-        $this->getAir()->instance('request', $request);
-
         try {
             $response = $this->sendRequestThroughRouter($request);
         } catch (\Exception $e) {
-
+            var_dump($e);
         } catch (\Throwable $e) {
-
+            echo '<pre>';
+            var_dump($e);
         }
 
-        return (new Response('Hello World'))->prepare($request);
+        return $response;
     }
 
     /**
@@ -85,9 +82,14 @@ class Handler extends InjectAir implements IHandler
      * 进入路由
      * @param $request
      * @return mixed
+     * @throws \Exception
      */
     protected function sendRequestThroughRouter($request)
     {
+        $this->getAir()->instance('request', $request);
+
+        $this->bootstrap();
+
         return (new Pipeline($this->getAir()))
             ->send($request)
             ->through($this->middleware ?? [])

@@ -80,9 +80,10 @@ class Air extends Container
              'app' => \Air\Kernel\Container\Container::class,
              'request' => \Air\Kernel\Logic\Handle\Request::class,
              'response' => \Air\Kernel\Logic\Handle\Response::class,
+             'response.json' => \Air\Kernel\Logic\Handle\JsonResponse::class,
+             'route' => \Air\Kernel\Routing\Route::class,
              'router' => \Air\Kernel\Routing\Router::class,
              'router.dispatch' => \Air\Kernel\Routing\RouterDispatch::class,
-             'protocol' => \Air\Service\Server\Sw::class,
              'pipeline' => \Air\Pipeline\Pipeline::class
         ] as $key => $alias) {
             $this->alias($key, $alias);

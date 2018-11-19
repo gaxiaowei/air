@@ -1,3 +1,9 @@
 <?php
 /**@var $router \Air\Kernel\Routing\Router**/
-$router->get('/index', 'App\Http\Controller\Index@show');
+use Air\Kernel\Routing\Router;
+
+$router
+    ->namespace('App\Http')
+    ->group(['middleware' => []], function (Router $router) {
+        $router->get('/index', 'Controller\Index@show');
+    });

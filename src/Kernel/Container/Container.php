@@ -39,8 +39,6 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     private $aliases = [];
 
-    private $aliasesReverses = [];
-
     /**
      * 实例化服务目标参数
      * @var array
@@ -94,7 +92,8 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     public function instance($abstract, $instance)
     {
-        $this->removeAlias($abstract);
+        $abstract = $this->getAlias($abstract);
+        unset($this->instances[$abstract]);
 
         $this->instances[$abstract] = $instance;
 
