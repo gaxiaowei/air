@@ -23,19 +23,20 @@ use InvalidArgumentException;
  */
 class Router
 {
-    private $allowed_method = ['get', 'head', 'post', 'put', 'patch', 'delete', 'options', 'any'];
-    private $allowed_attribute = ['domain', 'prefix', 'middleware', 'namespace'];
+    const ALLOWED_METHOD = ['get', 'head', 'post', 'put', 'patch', 'delete', 'options', 'any'];
+    const ALLOWED_ATTRIBUTE = ['domain', 'prefix', 'middleware', 'namespace'];
 
-    private $method_all = 'ANY';
-    private $handler = '#handler';
-    private $separator = '/';
-    private $parameter = '*';
+    const METHOD_ALL = 'ANY';
+    const HANDLER = '#handler';
+    const SEPARATOR = '/';
+    const PARAMETER = '*';
 
     private $tree = [];
     private $attributes = [];
     private $groupStack = [];
 
     /**
+     * 设置分组路由
      * @param array $attributes
      * @param $routes
      */
@@ -67,11 +68,11 @@ class Router
      */
     public function __call($method, $args)
     {
-        if (in_array($method, $this->allowed_method)) {
+        if (in_array($method, static::ALLOWED_METHOD)) {
             return $this->register($method, ...$args);
         }
 
-        if (in_array($method, $this->allowed_attribute)) {
+        if (in_array($method, static::ALLOWED_ATTRIBUTE)) {
             if ($method === 'middleware') {
                 return $this->attribute($method, is_array($args[0]) ? $args[0] : $args);
             }
@@ -105,8 +106,8 @@ class Router
         }
 
         return explode(
-            $this->separator,
-            trim($string, $this->separator)
+            static::SEPARATOR,
+            trim($string, static::SEPARATOR)
         );
     }
 
@@ -118,7 +119,7 @@ class Router
      */
     private function attribute($key, $value)
     {
-        if (!in_array($key,$this->allowed_attribute)) {
+        if (!in_array($key, static::ALLOWED_ATTRIBUTE)) {
             throw new InvalidArgumentException("Attribute [{$key}] does not exist.");
         }
 
@@ -163,7 +164,7 @@ class Router
         }
 
         /**! 没有设置的属性设定默认值 !**/
-        foreach ($this->allowed_attribute as $attr) {
+        foreach (static::ALLOWED_ATTRIBUTE as $attr) {
             if (!array_key_exists($attr, $action)) {
                 $action[$attr] = '';
             }
@@ -196,7 +197,7 @@ class Router
                 if (strpos($token, '{') !== false) {
                     $matches[substr($token, 1, -1)] = null;
 
-                    $token = $this->parameter;
+                    $token = static::PARAMETER;
                 }
 
                 if (!isset($tree[$token])) {
@@ -206,7 +207,7 @@ class Router
                 $tree = &$tree[$token];
             }
 
-            $tree[$this->handler] = [
+            $tree[static::HANDLER] = [
                 'uri' => $uri,
                 'method' => $method,
                 'action' => $action,
@@ -223,26 +224,26 @@ class Router
      */
     private function searchTree($tokens, $method)
     {
-        $nodes = $this->tree[strtoupper($method)] ?? $this->tree[$this->method_all] ?? false;
+        $nodes = $this->tree[strtoupper($method)] ?? $this->tree[static::METHOD_ALL] ?? false;
 
         if (false !== $nodes) {
             foreach ($tokens as $token) {
                 if (isset($nodes[$token])) {
                     $nodes = $nodes[$token];
-                } else if (isset($nodes[$this->parameter])) {
-                    $nodes = $nodes[$this->parameter];
+                } else if (isset($nodes[static::PARAMETER])) {
+                    $nodes = $nodes[static::PARAMETER];
                     $matches[] = $token;
                 } else {
                     return false;
                 }
             }
 
-            if (isset($nodes[$this->handler])) {
-                foreach ($nodes[$this->handler]['matches'] as $key => $val) {
-                    $nodes[$this->handler]['matches'][$key] = array_shift($matches);
+            if (isset($nodes[static::HANDLER])) {
+                foreach ($nodes[static::HANDLER]['matches'] as $key => $val) {
+                    $nodes[static::HANDLER]['matches'][$key] = array_shift($matches);
                 }
 
-                return new Route($nodes[$this->handler]);
+                return new Route($nodes[static::HANDLER]);
             }
         }
 
@@ -250,6 +251,7 @@ class Router
     }
 
     /**
+     * group调用是否有参数
      * @return bool
      */
     private function hasGroupStack()
@@ -258,6 +260,7 @@ class Router
     }
 
     /**
+     * 将group的属性合并
      * @param $new
      * @return array
      */
@@ -267,7 +270,7 @@ class Router
     }
 
     /**
-     * 递归调用属性合并
+     * 解决递归调用属性合并
      * @param array $attributes
      */
     private function updateGroupStack(array $attributes)

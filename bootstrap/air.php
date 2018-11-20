@@ -21,4 +21,13 @@ $air->singleton('config', function(\Air\Air $air) {
     return $air->make(\Noodlehaus\Config::class, $air->getConfigPath());
 });
 
+/**! 日志 !**/
+if ($air->make('config')->get('log.enable')) {
+    $air->singleton('log', function(\Air\Air $air) {
+        return $air->make(
+            \Air\Log\Logger::class, $air, new \Monolog\Logger($air->make('config')->get('app.env'))
+        );
+    });
+}
+
 return $air;

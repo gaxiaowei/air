@@ -83,8 +83,9 @@ class Air extends Container
              'response.json' => \Air\Kernel\Logic\Handle\JsonResponse::class,
              'route' => \Air\Kernel\Routing\Route::class,
              'router' => \Air\Kernel\Routing\Router::class,
-             'router.dispatch' => \Air\Kernel\Routing\RouterDispatch::class,
-             'pipeline' => \Air\Pipeline\Pipeline::class
+             'router.dispatcher' => \Air\Kernel\Routing\RouterDispatcher::class,
+             'pipeline' => \Air\Pipeline\Pipeline::class,
+             'logger' => \Air\Log\Logger::class
         ] as $key => $alias) {
             $this->alias($key, $alias);
         }

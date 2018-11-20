@@ -10,7 +10,5 @@ class Kernel extends Handler
     public function terminate(Request $request, Response $response)
     {
         parent::terminate($request, $response);
-
-
     }
 }

@@ -6,28 +6,14 @@ use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
 use Air\Kernel\Routing\Router;
-use Air\Pipeline\Pipeline;
 
 class Handler extends InjectAir implements IHandler
 {
     /**
+     * 路由
      * @var Router
      */
     protected $router;
-
-    /**
-     * 全局中间件
-     * @var array
-     */
-    protected $middleware = [];
-
-    /**
-     * 启动项
-     * @var array
-     */
-    protected $bootstraps = [
-        \App\Boot\RouteConfigLoad::class
-    ];
 
     public function __construct(Air $air, Router $router)
     {
@@ -37,15 +23,10 @@ class Handler extends InjectAir implements IHandler
     }
 
     /**
-     * 请求初始化
+     * 进入请求之前执行
      * @throws \Exception
      */
-    public function bootstrap()
-    {
-        foreach ($this->bootstraps as $boot) {
-            $this->getAir()->make($boot)->bootstrap($this->getAir());
-        }
-    }
+    public function bootstrap(){}
 
     /**
      * 请求执行
@@ -55,16 +36,19 @@ class Handler extends InjectAir implements IHandler
      */
     public function handle(Request $request) : Response
     {
+        $this->getAir()->instance('request', $request);
+
+        $this->bootstrap();
+
         try {
-            $response = $this->sendRequestThroughRouter($request);
+            $response = $this->routerDispatcher($request);
         } catch (\Exception $e) {
-            var_dump($e);
-        } catch (\Throwable $e) {
-            echo '<pre>';
-            var_dump($e);
+
+        } catch (\Error $e) {
+
         }
 
-        return $response;
+        return new Response();
     }
 
     /**
@@ -75,36 +59,17 @@ class Handler extends InjectAir implements IHandler
      */
     public function terminate(Request $request, Response $response)
     {
-
     }
 
     /**
-     * 进入路由
+     * router 适配 执行控制器
      * @param $request
      * @return mixed
      * @throws \Exception
      */
-    protected function sendRequestThroughRouter($request)
+    private function routerDispatcher($request)
     {
-        $this->getAir()->instance('request', $request);
-
-        $this->bootstrap();
-
-        return (new Pipeline($this->getAir()))
-            ->send($request)
-            ->through($this->middleware ?? [])
-            ->then($this->dispatchToRouter());
-    }
-
-    /**
-     * 分发路由执行控制器
-     * @return \Closure
-     */
-    protected function dispatchToRouter()
-    {
-        return function ($request) {
-            return $this->getAir()->make('router.dispatch')->run($this->router, $request);
-        };
+        return $this->getAir()->make('router.dispatcher')->run($this->router, $request);
     }
 
     /**
@@ -112,7 +77,7 @@ class Handler extends InjectAir implements IHandler
      * @param Air $obj
      * @return Air
      */
-    private function clone(Air $obj)
+    private final function clone(Air $obj)
     {
         if (!defined('SW')) {
             return $obj;

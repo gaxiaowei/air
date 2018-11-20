@@ -2,6 +2,7 @@
 namespace Air\Service\Server;
 
 use Air\Kernel\InjectAir;
+use App\Http\Kernel;
 
 class Ng extends InjectAir implements IServer
 {
@@ -12,8 +13,7 @@ class Ng extends InjectAir implements IServer
     {
         define('NG', true);
 
-        /**@var $kernel \App\Http\Kernel**/
-        $httpKernel = new \App\Http\Kernel(static::getAir(), static::getAir()->make('router'));
+        $httpKernel = new Kernel(static::getAir(), static::getAir()->make('router'));
 
         $response = $httpKernel->handle(
             $request = \Air\Kernel\Logic\Handle\Request::createFromGlobals()

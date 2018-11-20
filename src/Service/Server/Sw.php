@@ -38,12 +38,12 @@ class Sw implements IServer
         $config = $this->getAir()->make('config');
 
         /**! 开启Http服务 !**/
-        if ($config->get('protocol.http.enable')) {
-            $set = $config->get('server.set');
+        if ($config->get('sw.http.enable')) {
+            $set = $config->get('sw.set');
 
             $this->sw = new HttpServer(
-                $config->get('protocol.http.bind'),
-                $config->get('protocol.http.port')
+                $config->get('sw.http.bind'),
+                $config->get('sw.http.port')
             );
 
             $this->sw->set($set);
@@ -51,20 +51,20 @@ class Sw implements IServer
         }
 
         /**! 开启Tcp服务 !**/
-        if ($config->get('protocol.tcp.enable')) {
-            $set = $this->getAir()->make($config->get('protocol.tcp.pack'))->getProBufSet() ?? [];
+        if ($config->get('sw.tcp.enable')) {
+            $set = $this->getAir()->make($config->get('sw.tcp.pack'))->getProBufSet() ?? [];
 
             if (is_null($this->sw)) {
                 $tcpPort = $this->sw = new TcpServer(
-                    $config->get('protocol.tcp.bind'),
-                    $config->get('protocol.tcp.port')
+                    $config->get('sw.tcp.bind'),
+                    $config->get('sw.tcp.port')
                 );
 
-                $set = $set + $config->get('server.set');
+                $set = $set + $config->get('sw.set');
             } else {
                 $tcpPort = $this->sw->addListener(
-                    $config->get('protocol.tcp.bind'),
-                    $config->get('protocol.tcp.port'),
+                    $config->get('sw.tcp.bind'),
+                    $config->get('sw.tcp.port'),
                     SWOOLE_SOCK_TCP
                 );
             }

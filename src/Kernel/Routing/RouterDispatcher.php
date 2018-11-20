@@ -10,7 +10,7 @@ use Air\Pipeline\Pipeline;
 use ArrayObject;
 use JsonSerializable;
 
-class RouterDispatch extends InjectAir
+class RouterDispatcher extends InjectAir
 {
     /**
      * 匹配
@@ -61,7 +61,7 @@ class RouterDispatch extends InjectAir
     }
 
     /**
-     * 准备好一个 response 对象
+     * 准备好一个 response 对象返回
      * @param $request
      * @param $response
      * @return Response|JsonResponse

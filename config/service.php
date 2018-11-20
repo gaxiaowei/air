@@ -1,7 +1,21 @@
 <?php
-
 $config = [
-    'server' => [
+    'sw' => [
+        'tcp' => [
+            'enable' => true,
+            'bind' => '0.0.0.0',
+            'port' => 8000,
+            'pack' => \Air\Pack\LenJsonPack::class
+        ],
+
+        'http' => [
+            'enable' => true,
+            'bind' => '0.0.0.0',
+            'port' => 8001,
+            'pack' => null
+        ],
+
+        /**! sw的属性设置 !**/
         'set' => [
             'reactor_num' => 1,
             'worker_num' => 2,
@@ -16,7 +30,7 @@ $config = [
             'heartbeat_idle_time' => 120,
             'heartbeat_check_interval' => 60
         ]
-    ]
+    ],
 ];
 
 return $config;
