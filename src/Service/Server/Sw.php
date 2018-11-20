@@ -219,11 +219,28 @@ class Sw implements IServer
      * worker 进程启动
      * @param TcpServer $server
      * @param $workerId
+     *
+     * @throws \Exception
      */
     public function workerStart(TcpServer $server, $workerId)
     {
         if (!$server->taskworker) {
             $this->setProcessName('php worker process');
+
+            /**! 加载路由 !**/
+            $this->getAir()->make('router')->group([], function ($router) {
+                /**@var $router \Air\Kernel\Routing\Router**/
+
+                $router
+                    ->namespace('App\Http')
+                    ->prefix('api')
+                    ->group([], $this->getAir()->getRoutesPath().'/api.php');
+
+                $router
+                    ->namespace('App\Http')
+                    ->prefix('rpc')
+                    ->group([], $this->getAir()->getRoutesPath().'/rpc.php');
+            });
         } else {
             $this->setProcessName('php task process');
         }

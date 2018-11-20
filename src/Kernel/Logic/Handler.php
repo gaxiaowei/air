@@ -48,7 +48,7 @@ class Handler extends InjectAir implements IHandler
 
         }
 
-        return new Response();
+        return $response;
     }
 
     /**

@@ -137,12 +137,7 @@ class Router
      */
     private function register($method, $uri, $handle)
     {
-        $action = $this->compileAction($handle);
-        if ($action['prefix']) { /**! 拼接完整的URI !**/
-            $uri = rtrim($action['prefix'], '\\').'\\'.ltrim($uri, '\\');
-        }
-
-        $this->insertTree($this->split($uri), $uri, (array)$method, $action);
+        $this->insertTree($uri, (array)$method, $this->compileAction($handle));
 
         return $this;
     }
@@ -180,13 +175,18 @@ class Router
 
     /**
      * 插入节点树
-     * @param $tokens
      * @param $uri
      * @param $methods
      * @param mixed ...$action
      */
-    private function insertTree($tokens, $uri, $methods, $action)
+    private function insertTree($uri, $methods, $action)
     {
+        /**! 拼接完整的URI !**/
+        if (!empty($action['prefix'])) {
+            $uri = trim($action['prefix'], '/').'/'.trim($uri, '/');
+        }
+
+        $tokens = $this->split($uri);
         $matches = [];
 
         foreach ($methods as $method) {
