@@ -230,7 +230,6 @@ class Sw implements IServer
             /**! 加载路由 !**/
             $this->getAir()->make('router')->group([], function ($router) {
                 /**@var $router \Air\Kernel\Routing\Router**/
-
                 $router
                     ->namespace('App\Http')
                     ->prefix('api')

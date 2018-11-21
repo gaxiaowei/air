@@ -47,12 +47,17 @@ class Air extends Container
         $this->root = $path;
     }
 
+    public function getRootPath()
+    {
+        return $this->root.DIRECTORY_SEPARATOR;
+    }
+
     /**
      * @return string
      */
     public function getConfigPath()
     {
-        return $this->root.DIRECTORY_SEPARATOR.'config';
+        return $this->getRootPath().'config';
     }
 
     /**
@@ -60,7 +65,7 @@ class Air extends Container
      */
     public function getAppPath()
     {
-        return $this->root.DIRECTORY_SEPARATOR.'/app';
+        return $this->getRootPath().'app';
     }
 
     /**
@@ -68,7 +73,24 @@ class Air extends Container
      */
     public function getRoutesPath()
     {
-        return $this->root.DIRECTORY_SEPARATOR.'/routes';
+        return $this->getRootPath().'routes';
+    }
+
+    /**
+     * @return string
+     */
+    public function getLogsPath()
+    {
+        return $this->getRootPath().DIRECTORY_SEPARATOR.'/logs';
+    }
+
+    /**
+     * @return string
+     * @throws \Exception
+     */
+    public function getLogsFilePath()
+    {
+        return $this->getLogsPath().DIRECTORY_SEPARATOR.$this->get('config')->get('app.env').'.log';
     }
 
     /**
@@ -85,7 +107,10 @@ class Air extends Container
              'router' => \Air\Kernel\Routing\Router::class,
              'router.dispatcher' => \Air\Kernel\Routing\RouterDispatcher::class,
              'pipeline' => \Air\Pipeline\Pipeline::class,
-             'logger' => \Air\Log\Logger::class
+             'logger' => \Air\Log\Logger::class,
+             'cache.apcu' => \Air\Cache\Apcu::class,
+             'cache.file' => \Air\Cache\Apcu::class,
+             'cache.redis' => \Air\Cache\Apcu::class,
         ] as $key => $alias) {
             $this->alias($key, $alias);
         }

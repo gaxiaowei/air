@@ -36,6 +36,24 @@ class Router
     private $groupStack = [];
 
     /**
+     * 获取路由节点数组
+     * @return array
+     */
+    public function getTree()
+    {
+        return $this->tree;
+    }
+
+    /**
+     * 设置路由节点数组
+     * @param array $tree
+     */
+    public function setTree($tree = [])
+    {
+        $this->tree = $tree;
+    }
+
+    /**
      * 设置分组路由
      * @param array $attributes
      * @param $routes

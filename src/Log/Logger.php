@@ -41,16 +41,15 @@ class Logger implements LoggerInterface
      *
      * Logger constructor.
      * @param Air $air
-     * @param MonologLogger $monolog
      * @throws \Exception
      */
-    public function __construct(Air $air, MonologLogger $monolog)
+    public function __construct(Air $air)
     {
-        $this->monolog = $monolog;
+        $this->monolog = new MonologLogger($air->make('config')->get('app.env'));
 
         $this->useFiles(
-            $air->make('config')->get('log.file'),
-            $air->make('config')->get('log.level')
+            $air->getLogsFilePath(),
+            $air->get('config')->get('log.level')
         );
     }
 
