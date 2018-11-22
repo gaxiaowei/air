@@ -1,8 +1,8 @@
 <?php
 namespace Air;
 
+use Air\Exception\FatalThrowableError;
 use Air\Kernel\Container\Container;
-use Air\Kernel\Debug\Exception\FatalThrowableError;
 use Air\Kernel\Debug\IHandler;
 use App\Exception\Handler;
 use ErrorException;

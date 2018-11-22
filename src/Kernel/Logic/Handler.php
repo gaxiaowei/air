@@ -2,7 +2,7 @@
 namespace Air\Kernel\Logic;
 
 use Air\Air;
-use Air\Kernel\Debug\Exception\FatalThrowableError;
+use Air\Exception\FatalThrowableError;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;

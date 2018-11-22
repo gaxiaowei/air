@@ -1,5 +1,5 @@
 <?php
-namespace Air\Kernel\Debug\Exception;
+namespace Air\Exception;
 
 class UndefinedMethodException extends FatalErrorException
 {
