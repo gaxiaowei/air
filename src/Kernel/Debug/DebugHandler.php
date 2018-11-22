@@ -9,7 +9,7 @@ use Exception;
 use Whoops\Handler\PrettyPageHandler;
 use Whoops\Run as Whoops;
 
-class ExceptionHandler extends InjectAir implements IHandler
+class DebugHandler extends InjectAir implements IHandler
 {
     /**
      * @param Exception $e
