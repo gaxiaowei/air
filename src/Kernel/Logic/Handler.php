@@ -2,10 +2,13 @@
 namespace Air\Kernel\Logic;
 
 use Air\Air;
+use Air\Kernel\Debug\Exception\FatalThrowableError;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
 use Air\Kernel\Routing\Router;
+use Exception;
+use Throwable;
 
 class Handler extends InjectAir implements IHandler
 {
@@ -42,10 +45,14 @@ class Handler extends InjectAir implements IHandler
 
         try {
             $response = $this->routerDispatcher($request);
-        } catch (\Exception $e) {
+        }  catch (Exception $e) {
+            $this->reportException($e);
 
-        } catch (\Error $e) {
+            $response = $this->renderException($request, $e);
+        } catch (Throwable $e) {
+            $this->reportException($e = new FatalThrowableError($e));
 
+            $response = $this->renderException($request, $e);
         }
 
         return $response;
@@ -57,9 +64,7 @@ class Handler extends InjectAir implements IHandler
      * @param Request $request
      * @param Response $response
      */
-    public function terminate(Request $request, Response $response)
-    {
-    }
+    public function terminate(Request $request, Response $response){}
 
     /**
      * router 适配 执行控制器
@@ -87,5 +92,27 @@ class Handler extends InjectAir implements IHandler
         $air->registerBaseBinds();
 
         return $air;
+    }
+
+    /**
+     * 将异常导出到日志
+     * @param Exception $e
+     * @throws \Exception
+     */
+    private function reportException(Exception $e)
+    {
+        $this->getAir()->get(\Air\Kernel\Debug\IHandler::class)->report($e);
+    }
+
+    /**
+     * 将异常输出
+     * @param $request
+     * @param Exception $e
+     * @return mixed
+     * @throws \Exception
+     */
+    private function renderException($request, Exception $e)
+    {
+        return $this->getAir()->get(\Air\Kernel\Debug\IHandler::class)->render($request, $e);
     }
 }

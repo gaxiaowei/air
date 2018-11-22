@@ -1,0 +1,22 @@
+<?php
+namespace Air\Kernel\Debug\Exception;
+
+class ClassNotFoundException extends FatalErrorException
+{
+    public function __construct($message, \ErrorException $previous)
+    {
+        parent::__construct(
+            $message,
+            $previous->getCode(),
+            $previous->getSeverity(),
+            $previous->getFile(),
+            $previous->getLine(),
+            null,
+            true,
+            null,
+            $previous->getPrevious()
+        );
+
+        $this->setTrace($previous->getTrace());
+    }
+}

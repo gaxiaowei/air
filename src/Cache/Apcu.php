@@ -5,7 +5,7 @@ use Air\Air;
 
 class Apcu implements ICache
 {
-    use CacheTrait;
+    use CTrait;
 
     /**
      * Apcu constructor.
@@ -105,7 +105,7 @@ class Apcu implements ICache
     }
 
     /**
-     * 查看某个缓存自动过期时间
+     * 查看某个缓存还剩下多少秒过期
      * @param string $key
      * @return int
      */
@@ -113,8 +113,6 @@ class Apcu implements ICache
     {
         if ($this->has($key)) {
             $cache = $this->getApcuIterator($key)->current();
-            echo '<pre>';
-            print_r($cache);
             if (false !== $cache) {
                 if ($cache['ttl'] === 0) {
                     return -1;

@@ -5,6 +5,7 @@ class Index
 {
     public function show()
     {
+
         return 'Hello World';
     }
 }

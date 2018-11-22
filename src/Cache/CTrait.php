@@ -1,7 +1,7 @@
 <?php
 namespace Air\Cache;
 
-trait CacheTrait
+trait CTrait
 {
     /**
      * 前缀

@@ -2,6 +2,12 @@
 namespace Air;
 
 use Air\Kernel\Container\Container;
+use Air\Kernel\Debug\Exception\FatalThrowableError;
+use Air\Kernel\Debug\IHandler;
+use Air\Kernel\Logic\Handle\Response;
+use App\Exception\Handler;
+use ErrorException;
+use Exception;
 
 class Air extends Container
 {
@@ -24,6 +30,8 @@ class Air extends Container
     public function __construct($path = '')
     {
         $this->setPath($path);
+
+        $this->registerExceptionHandler();
 
         $this->registerBaseBinds();
 
@@ -125,5 +133,101 @@ class Air extends Container
 
         $this->instance(Container::class, $this);
         $this->instance(static::class, $this);
+    }
+
+    /**
+     * 注册异常、错误处理
+     */
+    private function registerExceptionHandler()
+    {
+        $this->singleton(IHandler::class, Handler::class);
+
+        error_reporting(-1);
+
+        set_error_handler([$this, 'handleError']);
+
+        set_exception_handler([$this, 'handleException']);
+
+        register_shutdown_function([$this, 'handleShutdown']);
+    }
+
+    /**
+     * @param $level
+     * @param $message
+     * @param string $file
+     * @param int $line
+     * @param array $context
+     * @throws ErrorException
+     */
+    public function handleError($level, $message, $file = '', $line = 0, $context = [])
+    {
+        if (error_reporting() & $level) {
+            throw new ErrorException($message, 0, $level, $file, $line);
+        }
+    }
+
+    /**
+     * @param $e
+     * @throws Exception
+     */
+    public function handleException($e)
+    {
+        if (!$e instanceof Exception) {
+            $e = new FatalThrowableError($e);
+        }
+
+        try {
+            $this->getExceptionHandler()->report($e);
+        } catch (Exception $e) {}
+
+        $this->renderHttpResponse($e);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function handleShutdown()
+    {
+        if (!is_null($error = error_get_last()) && $this->isFatal($error['type'])) {
+            $this->handleException($this->fatalExceptionFromError($error));
+        }
+    }
+
+    /**
+     * @param Exception $e
+     * @throws \Exception
+     */
+    protected function renderHttpResponse(Exception $e)
+    {
+        $this->getExceptionHandler()->render($this->get('request'), $e)->send();
+    }
+
+    /**
+     * @param array $error
+     * @return ErrorException
+     */
+    protected function fatalExceptionFromError(array $error)
+    {
+        return new ErrorException(
+            $error['message'], $error['type'], 0, $error['file'], $error['line'], null
+        );
+    }
+
+    /**
+     * @param $type
+     * @return bool
+     */
+    protected function isFatal($type)
+    {
+        return in_array($type, [E_COMPILE_ERROR, E_CORE_ERROR, E_ERROR, E_PARSE]);
+    }
+
+    /**
+     * @return mixed
+     * @throws \Exception
+     */
+    protected function getExceptionHandler()
+    {
+        return $this->make(IHandler::class);
     }
 }

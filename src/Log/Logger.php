@@ -45,7 +45,7 @@ class Logger implements LoggerInterface
      */
     public function __construct(Air $air)
     {
-        $this->monolog = new MonologLogger($air->make('config')->get('app.env'));
+        $this->monolog = new MonologLogger($air->get('config')->get('app.env'));
 
         $this->useFiles(
             $air->getLogsFilePath(),
@@ -278,6 +278,9 @@ class Logger implements LoggerInterface
      */
     private function getDefaultFormatter()
     {
-        return (new LineFormatter(null, null, true, true))->includeStacktraces();
+        $formatter = new LineFormatter(null, null, true, true);
+        $formatter->includeStacktraces();
+
+        return $formatter;
     }
 }
