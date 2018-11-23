@@ -5,7 +5,7 @@ use Air\Air;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
-use App\Http\Kernel;
+use App\Kernel;
 use Swoole\Http\Request as SwRequest;
 use Swoole\Http\Response as SwResponse;
 use Swoole\Server as TcpServer;
@@ -128,7 +128,7 @@ class Sw implements IServer
         }
 
         /**@var $httpKernel Kernel**/
-        $httpKernel = new Kernel($this->getAir(), $this->getAir()->make('router'));
+        $httpKernel = new Kernel($this->getAir());
 
         /**! 处理http头字段大小写问题 !**/
         $server = array_change_key_case($request->server, CASE_UPPER);
@@ -147,10 +147,16 @@ class Sw implements IServer
         );
         unset($server);
 
+        ob_start();
+
         /**@var $httpResponse Response**/
         $httpResponse = $httpKernel->handle($httpRequest);
+        $httpResponse->sendContent();
 
-        /**! response !**/
+        $content = ob_get_contents();
+        ob_end_clean();
+
+        /**! header !**/
         $response->status($httpResponse->getStatusCode());
         foreach ($httpResponse->headers->allPreserveCase() as $key => $values) {
             foreach ($values as $val) {
@@ -158,7 +164,9 @@ class Sw implements IServer
             }
         }
 
-        $response->end($httpResponse->getContent());
+        /**! content !**/
+        $response->end($content);
+
         $httpKernel->terminate($httpRequest, $httpResponse);
     }
 
@@ -178,6 +186,9 @@ class Sw implements IServer
 
     }
 
+    /**
+     * 进程间通信
+     */
     public function pipeMessage()
     {
 

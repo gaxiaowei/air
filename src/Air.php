@@ -88,7 +88,7 @@ class Air extends Container
      */
     public function getLogsPath()
     {
-        return $this->getRootPath().DIRECTORY_SEPARATOR.'/logs';
+        return $this->getRootPath().'logs';
     }
 
     /**

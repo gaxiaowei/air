@@ -2,7 +2,7 @@
 namespace Air\Service\Server;
 
 use Air\Kernel\InjectAir;
-use App\Http\Kernel;
+use App\Kernel;
 
 class Ng extends InjectAir implements IServer
 {
@@ -15,7 +15,7 @@ class Ng extends InjectAir implements IServer
 
         $this->setRouterTree();
 
-        $httpKernel = new Kernel($this->getAir(), $this->getAir()->make('router'));
+        $httpKernel = new Kernel($this->getAir());
 
         $response = $httpKernel->handle(
             $request = \Air\Kernel\Logic\Handle\Request::createFromGlobals()

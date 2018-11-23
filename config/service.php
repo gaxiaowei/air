@@ -2,7 +2,7 @@
 $config = [
     'sw' => [
         'tcp' => [
-            'enable' => true,
+            'enable' => false,
             'bind' => '0.0.0.0',
             'port' => 8000,
             'pack' => \Air\Pack\LenJsonPack::class
@@ -18,7 +18,7 @@ $config = [
         /**! sw的属性设置 !**/
         'set' => [
             'reactor_num' => 1,
-            'worker_num' => 2,
+            'worker_num' => 1,
             'task_worker_num' => 0,
             'task_max_request' => 5000,
             'backlog' => 128,

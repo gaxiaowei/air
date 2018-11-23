@@ -1,5 +1,5 @@
 <?php
-namespace App\Http;
+namespace App;
 
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;

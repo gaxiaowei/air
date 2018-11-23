@@ -8,6 +8,7 @@ class Index
     public function show(Request $request)
     {
         var_dump($request);
+
         return 'Hello World';
     }
 }

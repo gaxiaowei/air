@@ -23,7 +23,7 @@ class RouterDispatcher extends InjectAir
     {
         $route = $router->route($request->getRequestUri(), $request->getMethod());
         if (false === $route) {
-            throw new RouteException('No matching route found');
+            throw new RouteException("No matching route found [{$request->getRequestUri()}]");
         }
 
         return static::prepareResponse(

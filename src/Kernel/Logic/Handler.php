@@ -6,23 +6,19 @@ use Air\Exception\FatalThrowableError;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Logic\Handle\Request;
 use Air\Kernel\Logic\Handle\Response;
-use Air\Kernel\Routing\Router;
+use Air\Kernel\Routing\RouterDispatcher;
 use Exception;
 use Throwable;
 
 class Handler extends InjectAir implements IHandler
 {
     /**
-     * 路由
-     * @var Router
+     * Handler constructor.
+     * @param Air $air
      */
-    protected $router;
-
-    public function __construct(Air $air, Router $router)
+    public function __construct(Air $air)
     {
         parent::__construct($this->clone($air));
-
-        $this->router = $router;
     }
 
     /**
@@ -40,8 +36,6 @@ class Handler extends InjectAir implements IHandler
     public function handle(Request $request) : Response
     {
         $this->getAir()->instance('request', $request);
-
-        $this->bootstrap();
 
         try {
             $response = $this->routerDispatcher($request);
@@ -74,7 +68,10 @@ class Handler extends InjectAir implements IHandler
      */
     private function routerDispatcher($request)
     {
-        return $this->getAir()->make('router.dispatcher')->run($this->router, $request);
+        return (new RouterDispatcher($this->getAir()))->run(
+            $this->getAir()->get('router'),
+            $request
+        );
     }
 
     /**
