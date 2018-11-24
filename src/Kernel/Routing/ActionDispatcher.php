@@ -8,11 +8,7 @@ use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
 
-/**
- * Class ControllerDispatcher
- * @package Air\Kernel\Routing
- */
-class ControllerDispatcher
+class ActionDispatcher
 {
     /**
      * @var Air

@@ -14,7 +14,7 @@ abstract class InjectAir
      * 容器对象
      * @var Air
      */
-    protected static $air;
+    protected $air;
 
     /**
      * InjectAir constructor.
@@ -22,9 +22,7 @@ abstract class InjectAir
      */
     public function __construct(Air $air)
     {
-        if (!self::$air) {
-            self::$air = $air;
-        }
+        $this->air = $air;
     }
 
     /**
@@ -33,6 +31,6 @@ abstract class InjectAir
      */
     final public function getAir() : Air
     {
-        return self::$air;
+        return $this->air;
     }
 }

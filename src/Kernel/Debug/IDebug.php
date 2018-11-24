@@ -1,10 +1,10 @@
 <?php
 namespace Air\Kernel\Debug;
 
-use Air\Kernel\Logic\Handle\Request;
+use Air\Kernel\Transfer\Request;
 use Exception;
 
-interface IHandler
+interface IDebug
 {
     /**
      * 导出或写入日志

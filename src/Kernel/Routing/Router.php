@@ -36,24 +36,6 @@ class Router
     private $groupStack = [];
 
     /**
-     * 获取路由节点数组
-     * @return array
-     */
-    public function getTree()
-    {
-        return $this->tree;
-    }
-
-    /**
-     * 设置路由节点数组
-     * @param array $tree
-     */
-    public function setTree($tree = [])
-    {
-        $this->tree = $tree;
-    }
-
-    /**
      * 设置分组路由
      * @param array $attributes
      * @param $routes
@@ -110,6 +92,24 @@ class Router
     public function route($path, $method)
     {
         return $this->searchTree($this->split($path), $method);
+    }
+
+    /**
+     * 获取路由节点数组
+     * @return array
+     */
+    public function getTree()
+    {
+        return $this->tree;
+    }
+
+    /**
+     * 设置路由节点数组
+     * @param array $tree
+     */
+    public function setTree($tree = [])
+    {
+        $this->tree = $tree;
     }
 
     /**
@@ -284,17 +284,17 @@ class Router
      */
     private function mergeAttributesWithLastGroup($new)
     {
-        return RouteGroup::merge($new, end($this->groupStack));
+        return $this->mergeGroup($new, end($this->groupStack));
     }
 
     /**
-     * 解决递归调用属性合并
+     * 递归调用属性合并
      * @param array $attributes
      */
     private function updateGroupStack(array $attributes)
     {
         if (!empty($this->groupStack)) {
-            $attributes = RouteGroup::merge($attributes, end($this->groupStack));
+            $attributes = $this->mergeGroup($attributes, end($this->groupStack));
         }
 
         $this->groupStack[] = $attributes;
@@ -313,5 +313,56 @@ class Router
 
             include $routes;
         }
+    }
+
+    /**
+     * 属性合并
+     * @param $new
+     * @param $old
+     * @return array
+     */
+    private function mergeGroup($new, $old)
+    {
+        if (isset($new['domain'])) {
+            unset($old['domain']);
+        }
+
+        $new = [
+            'namespace' => $this->mergeGroupNamespace($new, $old),
+            'prefix' => $this->mergeGroupPrefix($new, $old)
+        ];
+
+        return array_merge_recursive(
+            ['middleware' => (array)($old['middleware'] ?? [])],
+            $new
+        );
+    }
+
+    /**
+     * @param $new
+     * @param $old
+     * @return null|string
+     */
+    private function mergeGroupNamespace($new, $old)
+    {
+        if (isset($new['namespace'])) {
+            return isset($old['namespace'])
+                ? trim($old['namespace'], '\\').'\\'.trim($new['namespace'], '\\')
+                : trim($new['namespace'], '\\');
+        }
+
+        return $old['namespace'] ?? null;
+    }
+
+    /**
+     * @param $new
+     * @param $old
+     * @return null|string]
+     */
+    private function mergeGroupPrefix($new, $old)
+    {
+        $old = $old['prefix'] ?? null;
+
+        return isset($new['prefix']) ? trim($old, '/').'/'.trim($new['prefix'], '/') : $old;
     }
 }

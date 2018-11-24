@@ -2,14 +2,14 @@
 namespace Air\Kernel\Debug;
 
 use Air\Kernel\InjectAir;
-use Air\Kernel\Logic\Handle\JsonResponse;
-use Air\Kernel\Logic\Handle\Request;
-use Air\Kernel\Logic\Handle\Response;
+use Air\Kernel\Transfer\JsonResponse;
+use Air\Kernel\Transfer\Request;
+use Air\Kernel\Transfer\Response;
 use Exception;
 use Whoops\Handler\PrettyPageHandler;
 use Whoops\Run as Whoops;
 
-class DebugHandler extends InjectAir implements IHandler
+class Debug extends InjectAir implements IDebug
 {
     /**
      * @param Exception $e

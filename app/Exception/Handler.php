@@ -1,9 +1,9 @@
 <?php
 namespace App\Exception;
 
-use Air\Kernel\Debug\DebugHandler;
+use Air\Kernel\Debug\DebugDebug;
 
-class Handler extends DebugHandler
+class Handler extends DebugDebug
 {
 
 }

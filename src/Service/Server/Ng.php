@@ -2,7 +2,7 @@
 namespace Air\Service\Server;
 
 use Air\Kernel\InjectAir;
-use App\Kernel;
+use Air\Kernel\Transfer\Request;
 
 class Ng extends InjectAir implements IServer
 {
@@ -11,19 +11,17 @@ class Ng extends InjectAir implements IServer
      */
     public function run()
     {
-        define('NG', true);
-
         $this->setRouterTree();
 
-        $httpKernel = new Kernel($this->getAir());
+        $dispatcher = $this->getAir()->getDispatcher();
 
-        $response = $httpKernel->handle(
-            $request = \Air\Kernel\Logic\Handle\Request::createFromGlobals()
+        $response = $dispatcher->dispatch(
+            $request = Request::createFromGlobals()
         );
 
         $response->send();
 
-        $httpKernel->terminate($request, $response);
+        $dispatcher->terminate($request, $response);
     }
 
     /**
@@ -33,32 +31,26 @@ class Ng extends InjectAir implements IServer
     private function setRouterTree()
     {
         $cache = $this->getAir()->make('cache');
-        $routesDirKey = crc32($this->getAir()->getRoutesPath());
-        $routesLastModifyTime = filemtime($this->getAir()->getRoutesPath());
+        $router = $this->getAir()->make('router');
+
+        $routesDirPath = $this->getAir()->getRoutesPath();
+        $routesDirKey = crc32($routesDirPath);
+        $routesLastModifyTime = filemtime($routesDirPath);
 
         if ($cache->get($routesDirKey) !== $routesLastModifyTime) {
-            $this->getAir()->make('router')->group([], function ($router) {
-                /**@var $router \Air\Kernel\Routing\Router**/
-                $router
-                    ->namespace('App\Http')
-                    ->prefix('api')
-                    ->group([], $this->getAir()->getRoutesPath().'/api.php');
+            foreach (glob($routesDirPath.DIRECTORY_SEPARATOR.'*.php') as $file) {
+                $router->group([], $file);
+            }
 
-                $router
-                    ->namespace('App\Http')
-                    ->prefix('rpc')
-                    ->group([], $this->getAir()->getRoutesPath().'/rpc.php');
-            });
-
-            /**! 设置路由tree到缓存中 !**/
+            /**! 设置路由Tree到缓存中 !**/
             $cache->set(
                 'router-tree',
-                json_encode($this->getAir()->make('router')->getTree())
+                json_encode($router->getTree())
             );
 
             $cache->set($routesDirKey, $routesLastModifyTime);
         } else {
-            $this->getAir()->make('router')->setTree(json_decode($cache->get('router-tree'), true));
+            $router->setTree(json_decode($cache->get('router-tree'), true));
         }
     }
 }

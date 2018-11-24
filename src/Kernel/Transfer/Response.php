@@ -1,12 +1,12 @@
 <?php
-namespace Air\Kernel\Logic\Handle;
+namespace Air\Kernel\Transfer;
 
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * 方便以后扩展
  * Class Response
- * @package Air\Pattern\Handle
+ * @package Air\Kernel\Transfer
  */
 class Response extends SymfonyResponse
 {

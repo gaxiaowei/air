@@ -1,11 +1,11 @@
 <?php
 namespace App;
 
-use Air\Kernel\Logic\Handle\Request;
-use Air\Kernel\Logic\Handle\Response;
-use Air\Kernel\Logic\Handler;
+use Air\Kernel\Dispatcher\Dispatcher;
+use Air\Kernel\Transfer\Request;
+use Air\Kernel\Transfer\Response;
 
-class Kernel extends Handler
+class Kernel extends Dispatcher
 {
     public function terminate(Request $request, Response $response)
     {

@@ -1,3 +1,6 @@
 <?php
-$air = require_once __DIR__.'/../bootstrap/air.php';
-$air->make('sw')->run();
+require __DIR__.'/../vendor/autoload.php';
+
+$air = new Air\Air(realpath(__DIR__.'/../'));
+
+$air->server('sw')->run();

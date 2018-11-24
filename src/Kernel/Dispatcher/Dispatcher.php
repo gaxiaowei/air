@@ -1,44 +1,45 @@
 <?php
-namespace Air\Kernel\Logic;
+namespace Air\Kernel\Dispatcher;
 
 use Air\Air;
 use Air\Exception\FatalThrowableError;
 use Air\Kernel\InjectAir;
-use Air\Kernel\Logic\Handle\Request;
-use Air\Kernel\Logic\Handle\Response;
-use Air\Kernel\Routing\RouterDispatcher;
+use Air\Kernel\Routing\RouteDispatcher;
+use Air\Kernel\Transfer\Request;
+use Air\Kernel\Transfer\Response;
 use Exception;
 use Throwable;
 
-class Handler extends InjectAir implements IHandler
+class Dispatcher extends InjectAir implements IDispatcher
 {
     /**
      * Handler constructor.
      * @param Air $air
      */
-    public function __construct(Air $air)
+    final public function __construct(Air $air)
     {
-        parent::__construct($this->clone($air));
+        parent::__construct($air);
     }
 
     /**
-     * 进入请求之前执行
-     * @throws \Exception
+     * 路由分发前执行
      */
     public function bootstrap(){}
 
     /**
-     * 请求执行
+     * 执行路由分发
      * @param Request $request
-     * @return Response|mixed
+     * @return Response
      * @throws \Exception
      */
-    public function handle(Request $request) : Response
+    final public function dispatch(Request $request) : Response
     {
         $this->getAir()->instance('request', $request);
 
+        $this->bootstrap();
+
         try {
-            $response = $this->routerDispatcher($request);
+            $response = $this->routeDispatch($request);
         }  catch (Exception $e) {
             $this->reportException($e);
 
@@ -66,29 +67,12 @@ class Handler extends InjectAir implements IHandler
      * @return mixed
      * @throws \Exception
      */
-    private function routerDispatcher($request)
+    private function routeDispatch($request)
     {
-        return (new RouterDispatcher($this->getAir()))->run(
+        return (new RouteDispatcher($this->getAir()))->run(
             $this->getAir()->get('router'),
             $request
         );
-    }
-
-    /**
-     * 处理Sw协程共享变量问题 在Ng中不会
-     * @param Air $obj
-     * @return Air
-     */
-    private final function clone(Air $obj)
-    {
-        if (!defined('SW')) {
-            return $obj;
-        }
-
-        $air = clone $obj;
-        $air->registerBaseBinds();
-
-        return $air;
     }
 
     /**
@@ -98,7 +82,7 @@ class Handler extends InjectAir implements IHandler
      */
     private function reportException(Exception $e)
     {
-        $this->getAir()->get(\Air\Kernel\Debug\IHandler::class)->report($e);
+        $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->report($e);
     }
 
     /**
@@ -110,6 +94,6 @@ class Handler extends InjectAir implements IHandler
      */
     private function renderException($request, Exception $e)
     {
-        return $this->getAir()->get(\Air\Kernel\Debug\IHandler::class)->render($request, $e);
+        return $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->render($request, $e);
     }
 }

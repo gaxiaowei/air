@@ -2,28 +2,27 @@
 namespace Air\Kernel\Routing;
 
 use Air\Kernel\InjectAir;
-use Air\Kernel\Logic\Handle\JsonResponse;
-use Air\Kernel\Logic\Handle\Request;
-use Air\Kernel\Logic\Handle\Response;
-use Air\Kernel\Routing\Exception\RouteException;
+use Air\Kernel\Transfer\JsonResponse;
+use Air\Kernel\Transfer\Request;
+use Air\Kernel\Transfer\Response;
 use Air\Pipeline\Pipeline;
 use ArrayObject;
 use JsonSerializable;
 
-class RouterDispatcher extends InjectAir
+class RouteDispatcher extends InjectAir
 {
     /**
      * 匹配
      * @param Router $router
      * @param Request $request
      * @return JsonResponse|Response
-     * @throws RouteException
+     * @throws \Exception
      */
     public function run(Router $router, Request $request)
     {
         $route = $router->route($request->getRequestUri(), $request->getMethod());
         if (false === $route) {
-            throw new RouteException("No matching route found [{$request->getRequestUri()}]");
+            throw new Exception\RouteException("No matching route found [{$request->getRequestUri()}]");
         }
 
         return static::prepareResponse(
@@ -52,12 +51,12 @@ class RouterDispatcher extends InjectAir
     }
 
     /**
-     * @return ControllerDispatcher
+     * @return ActionDispatcher
      * @throws \Exception
      */
     private function runControllerDispatcher()
     {
-        return (new ControllerDispatcher($this->getAir(), $this->getAir()->make('route')))->run();
+        return (new ActionDispatcher($this->getAir(), $this->getAir()->make('route')))->run();
     }
 
     /**

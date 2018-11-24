@@ -2,10 +2,10 @@
 namespace Air\Service\Server;
 
 use Air\Air;
+use Air\Kernel\Dispatcher\Dispatcher;
 use Air\Kernel\InjectAir;
-use Air\Kernel\Logic\Handle\Request;
-use Air\Kernel\Logic\Handle\Response;
-use App\Kernel;
+use Air\Kernel\Transfer\Request;
+use Air\Kernel\Transfer\Response;
 use Swoole\Http\Request as SwRequest;
 use Swoole\Http\Response as SwResponse;
 use Swoole\Server as TcpServer;
@@ -33,8 +33,6 @@ class Sw implements IServer
      */
     public function run()
     {
-        define('SW', true);
-
         $config = $this->getAir()->make('config');
 
         /**! 开启Http服务 !**/
@@ -127,17 +125,15 @@ class Sw implements IServer
             return;
         }
 
-        /**@var $httpKernel Kernel**/
-        $httpKernel = new Kernel($this->getAir());
-
         /**! 处理http头字段大小写问题 !**/
         $server = array_change_key_case($request->server, CASE_UPPER);
         foreach ($request->header as $key => $val) {
             $server[sprintf('HTTP_%s', strtoupper(strtr($key, '-', '_')))] = $val;
         }
 
-        /**@var $httpRequest \Air\Kernel\Logic\Handle\Request**/
-        $httpRequest = new Request($request->get ?? [],
+        /**@var $req Request**/
+        $req = new Request(
+            $request->get ?? [],
             $request->post ?? [],
             [],
             $request->cookie ?? [],
@@ -149,16 +145,19 @@ class Sw implements IServer
 
         ob_start();
 
-        /**@var $httpResponse Response**/
-        $httpResponse = $httpKernel->handle($httpRequest);
-        $httpResponse->sendContent();
+        /**@var $dispatcher Dispatcher**/
+        $dispatcher = $this->getAir()->getDispatcher(clone $this->getAir());
+
+        /**@var Response Response**/
+        $res = $dispatcher->dispatch($req);
+        $res->sendContent();
 
         $content = ob_get_contents();
         ob_end_clean();
 
         /**! header !**/
-        $response->status($httpResponse->getStatusCode());
-        foreach ($httpResponse->headers->allPreserveCase() as $key => $values) {
+        $response->status($res->getStatusCode());
+        foreach ($res->headers->allPreserveCase() as $key => $values) {
             foreach ($values as $val) {
                 $response->header($key, $val);
             }
@@ -167,7 +166,7 @@ class Sw implements IServer
         /**! content !**/
         $response->end($content);
 
-        $httpKernel->terminate($httpRequest, $httpResponse);
+        $dispatcher->terminate($req, $res);
     }
 
     /**
@@ -239,18 +238,11 @@ class Sw implements IServer
             $this->setProcessName('php worker process');
 
             /**! 加载路由 !**/
-            $this->getAir()->make('router')->group([], function ($router) {
-                /**@var $router \Air\Kernel\Routing\Router**/
-                $router
-                    ->namespace('App\Http')
-                    ->prefix('api')
-                    ->group([], $this->getAir()->getRoutesPath().'/api.php');
-
-                $router
-                    ->namespace('App\Http')
-                    ->prefix('rpc')
-                    ->group([], $this->getAir()->getRoutesPath().'/rpc.php');
-            });
+            foreach (glob($this->getAir()->getRoutesPath().DIRECTORY_SEPARATOR.'*.php') as $file) {
+                $this->getAir()
+                    ->make('router')
+                    ->group([], $file);
+            }
         } else {
             $this->setProcessName('php task process');
         }
@@ -280,13 +272,12 @@ class Sw implements IServer
 
     }
 
+    /**
+     * @param $name
+     */
     private function setProcessName($name)
     {
-        if (function_exists('cli_set_process_title')) {
-            cli_set_process_title($name);
-        } else {
-            swoole_set_process_name($name);
-        }
+        cli_set_process_title($name);
     }
 
     private function registerCommonCallback()
