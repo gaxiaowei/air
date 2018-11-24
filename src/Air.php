@@ -179,7 +179,8 @@ final class Air extends Container
              'router' => \Air\Kernel\Routing\Router::class,
              'pipeline' => \Air\Pipeline\Pipeline::class,
              'logger' => \Air\Log\Logger::class,
-             'cache.apcu' => \Air\Cache\Apcu::class
+             'cache.apcu' => \Air\Cache\Apcu::class,
+             'debug' => \Air\Kernel\Debug\IDebug::class
         ] as $key => $alias) {
             $this->alias($key, $alias);
         }
@@ -215,6 +216,11 @@ final class Air extends Container
             return $this->make('cache.'.$this->make('config')->get('cache.drive'));
         });
 
+        /**! Debug !**/
+        $this->singleton(IDebug::class, function () {
+            return $this->make($this->get('config')->get('app.debug_handler') ?? Debug::class);
+        });
+
         /**! 路由 !**/
         $this->singleton(Router::class);
     }
@@ -224,8 +230,6 @@ final class Air extends Container
      */
     private function registerExceptionHandler()
     {
-        $this->singleton(IDebug::class, Debug::class);
-
         error_reporting(-1);
 
         set_error_handler([$this, 'handleError']);

@@ -80,7 +80,7 @@ class Dispatcher extends InjectAir implements IDispatcher
      * @param Exception $e
      * @throws \Exception
      */
-    private function reportException(Exception $e)
+    final private function reportException(Exception $e)
     {
         $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->report($e);
     }
@@ -92,7 +92,7 @@ class Dispatcher extends InjectAir implements IDispatcher
      * @return mixed
      * @throws \Exception
      */
-    private function renderException($request, Exception $e)
+    final private function renderException($request, Exception $e)
     {
         return $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->render($request, $e);
     }

@@ -2,6 +2,7 @@
 namespace Air\Service\Server;
 
 use Air\Air;
+use Air\Exception\FatalThrowableError;
 use Air\Kernel\Dispatcher\Dispatcher;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Transfer\Request;
@@ -145,10 +146,10 @@ class Sw implements IServer
 
         ob_start();
 
-        /**@var $dispatcher Dispatcher**/
+        /**@var $dispatcher Dispatcher* */
         $dispatcher = $this->getAir()->getDispatcher(clone $this->getAir());
 
-        /**@var Response Response**/
+        /**@var Response Response* */
         $res = $dispatcher->dispatch($req);
         $res->sendContent();
 
