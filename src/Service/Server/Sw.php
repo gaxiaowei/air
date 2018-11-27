@@ -2,9 +2,9 @@
 namespace Air\Service\Server;
 
 use Air\Air;
-use Air\Exception\FatalThrowableError;
 use Air\Kernel\Dispatcher\Dispatcher;
 use Air\Kernel\InjectAir;
+use Air\Kernel\Routing\RouteDispatcher;
 use Air\Kernel\Transfer\Request;
 use Air\Kernel\Transfer\Response;
 use Air\Pack\IPack;
@@ -123,15 +123,13 @@ class Sw implements IServer
             /**@var $req Request**/
             $req = new Request([], $data, [], [], [], [], null);
 
-            /**@var $dispatcher Dispatcher* */
-            $dispatcher = $this->getAir()->getDispatcher();
-
-            /**@var Response Response* */
-            $res = $dispatcher->dispatch($req);
+            /**@var $res Response* */
+            $res = (new RouteDispatcher($this->getAir()))->run(
+                $this->getAir()->get('router'),
+                $req
+            );
 
             $content['response'] = $res->getContent();
-
-            $dispatcher->terminate($req, $res);
         } catch (\Throwable $throwable) {
             $content['code'] = -1;
             $content['response'] = $throwable->getMessage();
