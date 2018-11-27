@@ -7,6 +7,7 @@ use Air\Kernel\Dispatcher\Dispatcher;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Transfer\Request;
 use Air\Kernel\Transfer\Response;
+use Air\Pack\IPack;
 use Swoole\Http\Request as SwRequest;
 use Swoole\Http\Response as SwResponse;
 use Swoole\Server as TcpServer;
@@ -106,10 +107,38 @@ class Sw implements IServer
      * @param $fd
      * @param $reactorId
      * @param $data
+     * @throws \Exception
      */
     public function receive(TcpServer $server, $fd, $reactorId, $data)
     {
+        /**@var $pack IPack**/
+        $packClassName = $this->getAir()->get('config')->get('sw.tcp.pack');
+        $pack = new $packClassName;
+        unset($packClassName);
 
+        $content['code'] = 0;
+        try {
+            $data = $pack->unPack($data);
+
+            /**@var $req Request**/
+            $req = new Request([], $data, [], [], [], [], null);
+
+            /**@var $dispatcher Dispatcher* */
+            $dispatcher = $this->getAir()->getDispatcher();
+
+            /**@var Response Response* */
+            $res = $dispatcher->dispatch($req);
+
+            $content['response'] = $res->getContent();
+
+            $dispatcher->terminate($req, $res);
+        } catch (\Throwable $throwable) {
+            $content['code'] = -1;
+            $content['response'] = $throwable->getMessage();
+        }
+
+        /**! 数据发送给调用方 !**/
+        $server->send($fd, $pack->pack($content));
     }
 
     /**
@@ -147,7 +176,7 @@ class Sw implements IServer
         ob_start();
 
         /**@var $dispatcher Dispatcher* */
-        $dispatcher = $this->getAir()->getDispatcher(clone $this->getAir());
+        $dispatcher = $this->getAir()->getDispatcher();
 
         /**@var Response Response* */
         $res = $dispatcher->dispatch($req);

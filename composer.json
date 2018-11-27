@@ -16,7 +16,8 @@
         "hassankhan/config": "@stable",
         "symfony/http-foundation": "@stable",
         "filp/whoops": "@stable",
-        "monolog/monolog": "@stable"
+        "monolog/monolog": "@stable",
+        "symfony/debug": "^4.1"
     },
     "autoload": {
         "psr-4": {

@@ -2,6 +2,7 @@
 namespace Air\Kernel\Routing;
 
 use Air\Air;
+use Air\Kernel\Transfer\Request;
 use BadMethodCallException;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
@@ -13,7 +14,7 @@ class ActionDispatcher
     /**
      * @var Air
      */
-    protected $air;
+    private $air;
 
     /**
      * @var Route
@@ -21,19 +22,26 @@ class ActionDispatcher
     private $route;
 
     /**
+     * @var Request
+     */
+    private $request;
+
+    /**
      * @var Object
      */
     private $controller;
 
     /**
-     * ControllerDispatcher constructor.
+     * ActionDispatcher constructor.
      * @param Air $air
      * @param Route $route
+     * @param Request $request
      */
-    public function __construct(Air $air, Route $route)
+    public function __construct(Air $air, Route $route, Request $request)
     {
         $this->air = $air;
         $this->route = $route;
+        $this->request = $request;
     }
 
     /**
@@ -135,10 +143,21 @@ class ActionDispatcher
     {
         $class = $parameter->getClass();
 
-        if ($class &&  !$this->alreadyInParameters($class->getName(), $parameters)) {
-            return $parameter->isDefaultValueAvailable()
-                ? $parameter->getDefaultValue()
-                : $this->air->make($class->getName());
+        if ($class && !$this->alreadyInParameters($class->getName(), $parameters)) {
+            if ($parameter->isDefaultValueAvailable()) {
+                return $parameter->getDefaultValue();
+            }
+
+            switch ($class->getName()) {
+                case Request::class :
+                    return $this->request;
+                    break;
+                case Route::class :
+                    return $this->route;
+                    break;
+                default :
+                    return $this->air->make($class->getName());
+            }
         }
 
         return null;

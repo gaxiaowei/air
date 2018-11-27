@@ -38,25 +38,29 @@ class RouteDispatcher extends InjectAir
      */
     private function runRoute(Route $route, Request $request)
     {
-        $this->getAir()->instance('route', $route);
-
         return (new Pipeline($this->getAir()))
             ->send($request)
             ->through($route->getMiddleware() ?? [])
-            ->then(function ($request) {
+            ->then(function ($request) use ($route) {
                 return static::prepareResponse(
-                    $request, $this->runControllerDispatcher()
+                    $request, $this->runControllerDispatcher($route, $request)
                 );
             });
     }
 
     /**
-     * @return ActionDispatcher
+     * @param Route $route
+     * @param Request $request
+     * @return mixed
      * @throws \Exception
      */
-    private function runControllerDispatcher()
+    private function runControllerDispatcher(Route $route, Request $request)
     {
-        return (new ActionDispatcher($this->getAir(), $this->getAir()->make('route')))->run();
+        return (new ActionDispatcher(
+            $this->getAir(),
+            $route,
+            $request
+        ))->run();
     }
 
     /**

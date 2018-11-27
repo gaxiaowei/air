@@ -1,6 +1,9 @@
 <?php
 namespace Air\Pack;
 
+use Air\Tool\Arr;
+use Air\Tool\Str;
+
 class LenJsonPack implements IPack
 {
     private $packageLengthType = 'N';
@@ -33,6 +36,12 @@ class LenJsonPack implements IPack
         return substr($buffer, $this->packageLengthTypeLength);
     }
 
+    /**
+     * @param $data
+     * @param null $topic
+     * @return string|null
+     * @throws \JsonException
+     */
     public function pack($data, $topic = null)
     {
         if ($this->lastData != null && $this->lastDataResult == $data) {
@@ -41,18 +50,17 @@ class LenJsonPack implements IPack
 
         $this->lastDataResult = $data;
 
-        return $this->lastDataResult = $this->encode(json_encode($data, JSON_UNESCAPED_UNICODE));
+        return $this->lastDataResult = $this->encode(Arr::toJsonStr($data, JSON_UNESCAPED_UNICODE));
     }
 
+    /**
+     * @param $data
+     * @return mixed
+     * @throws \JsonException
+     */
     public function unPack($data)
     {
-        $value = json_decode($this->decode($data));
-
-        if (empty($value)) {
-            throw new \LogicException('json unPack fail');
-        }
-
-        return $value;
+        return Str::jsonToArr($this->decode($data));
     }
 
     public function getProBufSet()
@@ -62,7 +70,7 @@ class LenJsonPack implements IPack
             'package_length_type' => $this->packageLengthType,
             'package_length_offset' => $this->packageLengthOffset,  //第N个字节是包长度的值
             'package_body_offset' => $this->packageBodyOffset,      //第几个字节开始计算长度
-            'package_max_length' => 2000000,                        //协议最大长度
+            'package_max_length' => 1024 * 1024 * 20,               //协议最大长度
         ];
     }
 }

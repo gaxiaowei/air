@@ -1,7 +1,6 @@
 <?php
 namespace Air\Kernel\Dispatcher;
 
-use Air\Air;
 use Air\Exception\FatalThrowableError;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Routing\RouteDispatcher;
@@ -12,15 +11,6 @@ use Throwable;
 
 class Dispatcher extends InjectAir implements IDispatcher
 {
-    /**
-     * Handler constructor.
-     * @param Air $air
-     */
-    final public function __construct(Air $air)
-    {
-        parent::__construct($air);
-    }
-
     /**
      * 路由分发前执行
      */
@@ -34,8 +24,6 @@ class Dispatcher extends InjectAir implements IDispatcher
      */
     final public function dispatch(Request $request) : Response
     {
-        $this->getAir()->instance('request', $request);
-
         $this->bootstrap();
 
         try {
@@ -59,7 +47,10 @@ class Dispatcher extends InjectAir implements IDispatcher
      * @param Request $request
      * @param Response $response
      */
-    public function terminate(Request $request, Response $response){}
+    public function terminate(Request $request, Response $response)
+    {
+
+    }
 
     /**
      * router 适配 执行控制器

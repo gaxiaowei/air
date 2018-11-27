@@ -3,6 +3,8 @@ namespace Air\Service\Server;
 
 use Air\Kernel\InjectAir;
 use Air\Kernel\Transfer\Request;
+use Air\Tool\Arr;
+use Air\Tool\Str;
 
 class Ng extends InjectAir implements IServer
 {
@@ -45,12 +47,12 @@ class Ng extends InjectAir implements IServer
             /**! 设置路由Tree到缓存中 !**/
             $cache->set(
                 'router-tree',
-                json_encode($router->getTree())
+                Arr::toJsonStr($router->getTree())
             );
 
             $cache->set($routesDirKey, $routesLastModifyTime);
         } else {
-            $router->setTree(json_decode($cache->get('router-tree'), true));
+            $router->setTree(Str::jsonToArr($cache->get('router-tree')));
         }
     }
 }

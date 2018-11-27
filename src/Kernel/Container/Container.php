@@ -295,6 +295,7 @@ class Container implements \ArrayAccess, ContainerInterface
      * @return array
      * @throws BindingResolutionException
      * @throws EntryNotFoundException
+     * @throws \ReflectionException
      */
     protected function resolveDependencies(array $dependencies)
     {
@@ -322,6 +323,7 @@ class Container implements \ArrayAccess, ContainerInterface
      * @return mixed
      * @throws BindingResolutionException
      * @throws EntryNotFoundException
+     * @throws \ReflectionException
      */
     protected function resolveClass(ReflectionParameter $parameter)
     {
@@ -341,6 +343,7 @@ class Container implements \ArrayAccess, ContainerInterface
      * @param ReflectionParameter $parameter
      * @return mixed
      * @throws BindingResolutionException
+     * @throws \ReflectionException
      */
     public function resolvePrimitive(ReflectionParameter $parameter)
     {
@@ -360,8 +363,8 @@ class Container implements \ArrayAccess, ContainerInterface
      */
     protected function throwNotInstantiable($concrete)
     {
-        if (!empty($this->buildArgs)) {
-            $previous = implode(', ', $this->buildArgs);
+        if (!empty($this->buildStackArgs)) {
+            $previous = implode(', ', $this->buildStackArgs);
 
             $message = "Target [$concrete] is not instantiable while building [$previous].";
         } else {

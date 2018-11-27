@@ -52,16 +52,18 @@ final class Air extends Container
     }
 
     /**
-     * 返回启动服务
      * @param string $pattern
      * @return IServer
-     * @throws \Exception
      */
     public function server(string $pattern = 'ng') : IServer
     {
         $this->server = $pattern;
 
-        return $this->make($this->server);
+        try {
+            return $this->make($this->server);
+        } catch (\Throwable $throwable) {
+            die($throwable->getMessage().PHP_EOL);
+        }
     }
 
     /**
