@@ -2,6 +2,7 @@
 namespace Air\Service\Server;
 
 use Air\Air;
+use Air\Exception\FatalThrowableError;
 use Air\Kernel\Dispatcher\Dispatcher;
 use Air\Kernel\InjectAir;
 use Air\Kernel\Routing\RouteDispatcher;
@@ -114,12 +115,9 @@ class Sw implements IServer
         /**@var $pack IPack**/
         $packClassName = $this->getAir()->get('config')->get('sw.tcp.pack');
         $pack = new $packClassName;
-        unset($packClassName);
 
         $content['code'] = 0;
         try {
-            $data = $pack->unPack($data);
-
             /**@var $req Request**/
             $req = new Request([], $data, [], [], [], [], null);
 
@@ -130,9 +128,17 @@ class Sw implements IServer
             );
 
             $content['response'] = $res->getContent();
-        } catch (\Throwable $throwable) {
-            $content['code'] = -1;
-            $content['response'] = $throwable->getMessage();
+        } catch (\Throwable $e) {
+            go(function() use ($e) {
+                $e = ($e instanceof \Exception) ? $e : new FatalThrowableError($e);
+
+                $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->report($e);
+            });
+
+            $content = [
+                'code' => 1,
+                'response' => 'Server Error'
+            ];
         }
 
         /**! 数据发送给调用方 !**/

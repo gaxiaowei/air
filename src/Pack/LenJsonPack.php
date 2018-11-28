@@ -22,12 +22,13 @@ class LenJsonPack implements IPack
      */
     public function encode($buffer)
     {
-        $totalLength = $this->packageLengthOffset + strlen($buffer) - $this->packageBodyOffset;
+        $totalLength = $this->packageLengthTypeLength + strlen($buffer) - $this->packageBodyOffset;
 
         return pack($this->packageLengthType, $totalLength) . $buffer;
     }
 
     /**
+     * 数据包解码
      * @param $buffer
      * @return string
      */
@@ -37,6 +38,7 @@ class LenJsonPack implements IPack
     }
 
     /**
+     * 编码
      * @param $data
      * @param null $topic
      * @return string|null
@@ -54,6 +56,7 @@ class LenJsonPack implements IPack
     }
 
     /**
+     * 解码
      * @param $data
      * @return mixed
      * @throws \JsonException

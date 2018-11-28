@@ -31,6 +31,13 @@ $config = [
             'heartbeat_check_interval' => 60
         ]
     ],
+
+    'servers' => [
+        'user' => [
+            '192.168.30.77:8000',
+            '192.168.30.77:8000'
+        ]
+    ]
 ];
 
 return $config;

@@ -28,12 +28,14 @@ class Dispatcher extends InjectAir implements IDispatcher
 
         try {
             $response = $this->routeDispatch($request);
-        }  catch (Exception $e) {
-            $this->reportException($e);
-
-            $response = $this->renderException($request, $e);
         } catch (Throwable $e) {
-            $this->reportException($e = new FatalThrowableError($e));
+            $e = ($e instanceof Exception) ? $e : new FatalThrowableError($e);
+
+            if (function_exists('go') && PHP_SAPI === 'cli') {
+                go(function() use ($e) {
+                    $this->reportException($e);
+                });
+            }
 
             $response = $this->renderException($request, $e);
         }
