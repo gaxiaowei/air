@@ -1,5 +1,5 @@
 /vendor/
-/logs/*
+/runtime/
 .idea
 composer.lock
 /public/test.php

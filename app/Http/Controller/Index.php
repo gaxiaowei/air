@@ -8,9 +8,6 @@ class Index
 {
     public function show(Request $request)
     {
-        echo '<pre>';
-        RPC::call('abc');
-
-        var_dump($request->server);
+        return 123;
     }
 }

@@ -1,14 +1,10 @@
 <?php
 namespace Air\Log;
 
-use Air\Air;
 use InvalidArgumentException;
 use Monolog\Logger as MonologLogger;
 use Monolog\Formatter\LineFormatter;
-use Monolog\Handler\ErrorLogHandler;
-use Monolog\Handler\RotatingFileHandler;
 use Monolog\Handler\StreamHandler;
-use Monolog\Handler\SyslogHandler;
 use Psr\Log\LoggerInterface;
 
 class Logger implements LoggerInterface
@@ -38,19 +34,17 @@ class Logger implements LoggerInterface
 
     /**
      * Create a new log writer instance
-     *
      * Logger constructor.
-     * @param Air $air
+     * @param MonologLogger $monolog
+     * @param string $file
+     * @param string $level
      * @throws \Exception
      */
-    public function __construct(Air $air)
+    public function __construct(MonologLogger $monolog, string $file, string $level = 'debug')
     {
-        $this->monolog = new MonologLogger($air->get('config')->get('app.env'));
+        $this->monolog = $monolog;
 
-        $this->useFiles(
-            $air->getLogsFilePath(),
-            $air->get('config')->get('log.level')
-        );
+        $this->useFiles($file, $level);
     }
 
     /**
@@ -200,48 +194,6 @@ class Logger implements LoggerInterface
         $this->monolog->pushHandler($handler = new StreamHandler($path, $this->parseLevel($level)));
 
         $handler->setFormatter($this->getDefaultFormatter());
-    }
-
-    /**
-     * Register a daily file log handler.
-     *
-     * @param  string  $path
-     * @param  int     $days
-     * @param  string  $level
-     * @return void
-     */
-    private function useDailyFiles($path, $days = 0, $level = 'debug')
-    {
-        $this->monolog->pushHandler(
-            $handler = new RotatingFileHandler($path, $days, $this->parseLevel($level))
-        );
-
-        $handler->setFormatter($this->getDefaultFormatter());
-    }
-
-    /**
-     * Register a Syslog handler.
-     *
-     * @param  string  $name
-     * @param  string  $level
-     * @param  mixed  $facility
-     * @return \Psr\Log\LoggerInterface
-     */
-    private function useSyslog($name = 'air', $level = 'debug', $facility = LOG_USER)
-    {
-        return $this->monolog->pushHandler(new SyslogHandler($name, $facility, $level));
-    }
-
-    /**
-     * Register an error_log handler.
-     *
-     * @param  string  $level
-     * @param  int  $messageType
-     * @return void
-     */
-    private function useErrorLog($level = 'debug', $messageType = ErrorLogHandler::OPERATING_SYSTEM)
-    {
-        $this->monolog->pushHandler(new ErrorLogHandler($messageType, $this->parseLevel($level)));
     }
 
     /**

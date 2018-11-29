@@ -302,13 +302,15 @@ class Container implements \ArrayAccess, ContainerInterface
         $results = [];
 
         foreach ($dependencies as $dependency) {
+            if ($this->hasParameterOverride($dependency)) {
+                $results[] = $this->getParameterOverride($dependency);
+
+                continue;
+            }
+
             /**@var $dependency ReflectionParameter**/
             if (is_null($dependency->getClass()) || !$dependency->getClass()->isInstantiable()) {
-                if ($this->hasParameterOverride($dependency)) {
-                    $results[] = $this->getParameterOverride($dependency);
-                } else {
-                    $results[] = $this->resolvePrimitive($dependency);
-                }
+                $results[] = $this->resolvePrimitive($dependency);
             } else {
                 $results[] = $this->resolveClass($dependency);
             }

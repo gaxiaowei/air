@@ -31,11 +31,15 @@ class Dispatcher extends InjectAir implements IDispatcher
         } catch (Throwable $e) {
             $e = ($e instanceof Exception) ? $e : new FatalThrowableError($e);
 
-            if (function_exists('go') && PHP_SAPI === 'cli') {
-                go(function() use ($e) {
-                    $this->reportException($e);
-                });
+            /**! sw协程函数兼容 !**/
+            $go = 'go';
+            if (!function_exists('go') || $this->getAir()->getServer() === 'ng') {
+                $go = function (callable $callback) {
+                    call_user_func($callback);
+                };
             }
+
+            $go(function() use ($e) {$this->reportException($e);});
 
             $response = $this->renderException($request, $e);
         }
@@ -60,7 +64,7 @@ class Dispatcher extends InjectAir implements IDispatcher
      * @return mixed
      * @throws \Exception
      */
-    private function routeDispatch($request)
+    final public function routeDispatch($request)
     {
         return (new RouteDispatcher($this->getAir()))->run(
             $this->getAir()->get('router'),

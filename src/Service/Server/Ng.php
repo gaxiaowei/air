@@ -17,9 +17,10 @@ class Ng extends InjectAir implements IServer
 
         $dispatcher = $this->getAir()->getDispatcher();
 
-        $response = $dispatcher->dispatch(
-            $request = Request::createFromGlobals()
-        );
+        $request = Request::createFromGlobals();
+        $this->getAir()->instance('request', $request);
+
+        $response = $dispatcher->dispatch($request);
 
         $response->send();
 
@@ -35,7 +36,7 @@ class Ng extends InjectAir implements IServer
         $cache = $this->getAir()->make('cache');
         $router = $this->getAir()->make('router');
 
-        $routesDirPath = $this->getAir()->getRoutesPath();
+        $routesDirPath = $this->getAir()->getRoutesDirPath();
         $routesDirKey = crc32($routesDirPath);
         $routesLastModifyTime = filemtime($routesDirPath);
 

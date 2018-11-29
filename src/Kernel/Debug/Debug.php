@@ -119,7 +119,7 @@ class Debug extends InjectAir implements IDebug
      */
     protected function convertExceptionToArray(Exception $e)
     {
-        return $this->getAir()->get('config')->get('app.debug') ? [
+        return $this->getAir()->make('config')->get('debug.enable') ? [
             'error' => $e->getMessage(),
             'exception' => get_class($e),
             'file' => $e->getFile(),
@@ -138,7 +138,7 @@ class Debug extends InjectAir implements IDebug
      */
     protected function convertExceptionToResponse(Exception $e)
     {
-        $content = $this->renderExceptionWithSymfony($e, $this->getAir()->get('config')->get('app.debug'));
+        $content = $this->renderExceptionWithSymfony($e, $this->getAir()->make('config')->get('debug.enable'));
 
         $statusCode = 200;
         if ($e instanceof \ErrorException) {

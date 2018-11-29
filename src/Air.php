@@ -40,7 +40,7 @@ final class Air extends Container
      */
     public function __construct(string $path)
     {
-        $this->setPath($path);
+        $this->setRootDir($path);
 
         $this->registerExceptionHandler();
 
@@ -48,10 +48,11 @@ final class Air extends Container
 
         $this->registerCoreAliases();
 
-        $this->registerBootService();
+        $this->registerRuntimeService();
     }
 
     /**
+     * 设定运行模式 sw ng
      * @param string $pattern
      * @return IServer
      */
@@ -67,16 +68,14 @@ final class Air extends Container
     }
 
     /**
-     * @param Air|null $air
+     * 获取调度对象
      * @return Dispatcher
      */
-    public function getDispatcher(Air $air = null) : Dispatcher
+    public function getDispatcher() : Dispatcher
     {
         $dispatcherClass = $this->getAlias('dispatcher');
 
-        is_null($air) ? : $air->registerBaseBinds();
-
-        return new $dispatcherClass($air ?? $this);
+        return new $dispatcherClass($this);
     }
 
     /**
@@ -89,7 +88,7 @@ final class Air extends Container
     }
 
     /**
-     * 返回 Air 框架版本
+     * 框架版本
      * @return string
      */
     public function getVersion()
@@ -98,66 +97,87 @@ final class Air extends Container
     }
 
     /**
+     * 设定项目根目录
      * @param $path
+     * @return $this
      */
-    public function setPath($path)
+    public function setRootDir($path)
     {
-        $this->root = $path;
+        if (!$this->root) {
+            $this->root = $path;
+        }
+
+        return $this;
     }
 
     /**
+     * 获取项目根路径
      * @return string
      */
-    public function getRootPath()
+    public function getRootDirPath()
     {
         return $this->root.DIRECTORY_SEPARATOR;
     }
 
     /**
+     * 获取app目录路径
      * @return string
      */
-    public function getConfigPath()
+    public function getAppDirPath()
     {
-        return $this->getRootPath().'config';
+        return $this->getRootDirPath().'app';
     }
 
     /**
+     * 获取config目录路径
      * @return string
      */
-    public function getAppPath()
+    public function getConfigDirPath()
     {
-        return $this->getRootPath().'app';
+        return $this->getRootDirPath().'config';
     }
 
     /**
+     * 获取routes目录路径
      * @return string
      */
-    public function getRoutesPath()
+    public function getRoutesDirPath()
     {
-        return $this->getRootPath().'routes';
+        return $this->getRootDirPath().'routes';
     }
 
     /**
+     * 获取runtime目录路径
      * @return string
      */
-    public function getLogsPath()
+    public function getRuntimeDirPath()
     {
-        return $this->getRootPath().'logs';
+        return $this->getRootDirPath().'runtime';
     }
 
     /**
+     * 获取logs目录路径
+     * @return string
+     */
+    public function getLogsDirPath()
+    {
+        return $this->getRuntimeDirPath().DIRECTORY_SEPARATOR.'logs';
+    }
+
+    /**
+     * 获取logs文件路径
      * @return string
      * @throws \Exception
      */
     public function getLogsFilePath()
     {
-        return $this->getLogsPath().DIRECTORY_SEPARATOR.$this->get('config')->get('app.env').'.log';
+        return $this->getLogsDirPath().DIRECTORY_SEPARATOR.$this->make('config')->get('app.env').'.log';
     }
 
     /**
      * 绑定基础服务
      */
-    public function registerBaseBinds()
+    private function registerBaseBinds()
     {
         static::setInstance($this);
 
@@ -172,6 +192,7 @@ final class Air extends Container
     {
         foreach ([
              'app' => \Air\Kernel\Container\Container::class,
+             'container' => \Air\Kernel\Container\Container::class,
              'dispatcher' => \Air\Kernel\Dispatcher\Dispatcher::class,
              'request' => \Air\Kernel\Transfer\Request::class,
              'response' => \Air\Kernel\Transfer\Response::class,
@@ -189,9 +210,9 @@ final class Air extends Container
     }
 
     /**
-     * 注册启动服务
+     * 注册运行时服务
      */
-    private function registerBootService()
+    private function registerRuntimeService()
     {
         /**! Sw模式运行 !**/
         $this->singleton('sw', function () {
@@ -205,12 +226,17 @@ final class Air extends Container
 
         /**! 配置 !**/
         $this->singleton('config', function() {
-            return $this->make(\Noodlehaus\Config::class, $this->getConfigPath());
+            return $this->make(\Noodlehaus\Config::class, $this->getConfigDirPath());
         });
 
         /**! 日志 !**/
         $this->singleton('log', function () {
-            return $this->make(Logger::class);
+            return $this->make(
+                Logger::class,
+                new \Monolog\Logger($this->make('config')->get('app.env')),
+                $this->getLogsFilePath(),
+                $this->make('config')->get('log.level')
+            );
         });
 
         /**! 缓存 !**/
@@ -220,7 +246,7 @@ final class Air extends Container
 
         /**! Debug !**/
         $this->singleton(IDebug::class, function () {
-            return $this->make($this->get('config')->get('app.debug_handler') ?? Debug::class);
+            return $this->make($this->make('config')->get('debug.handler') ?? Debug::class);
         });
 
         /**! 路由 !**/
@@ -267,10 +293,15 @@ final class Air extends Container
         }
 
         try {
-            $this->getExceptionHandler()->report($e);
+            $this->make('debug')->report($e);
         } catch (Exception $e) {}
 
-        $this->renderHttpResponse($e);
+        if ($this->getServer() === 'ng') {
+            $this->make('debug')->render($this->make('request'), $e)->send();
+        } else {
+            /**! sw 中使用输出 !**/
+            echo $e->getMessage();
+        }
     }
 
     /**
@@ -281,16 +312,6 @@ final class Air extends Container
         if (!is_null($error = error_get_last()) && $this->isFatal($error['type'])) {
             $this->handleException($this->fatalExceptionFromError($error));
         }
-    }
-
-    /**
-     * 输出错误
-     * @param Exception $e
-     * @throws \Exception
-     */
-    private function renderHttpResponse(Exception $e)
-    {
-        $this->getExceptionHandler()->render($this->get('request'), $e)->send();
     }
 
     /**
@@ -311,14 +332,5 @@ final class Air extends Container
     private function isFatal($type)
     {
         return in_array($type, [E_COMPILE_ERROR, E_CORE_ERROR, E_ERROR, E_PARSE]);
-    }
-
-    /**
-     * @return mixed
-     * @throws \Exception
-     */
-    private function getExceptionHandler()
-    {
-        return $this->make(IDebug::class);
     }
 }
