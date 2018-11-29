@@ -139,10 +139,16 @@ try {
 
             if (is_file($pid = $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid')) {
                 if (!$all) {
+                    if (!$config->get('sw.set.task_worker_num')) {
+                        Run::showTag('reload error', 'no task run');
+                        return;
+                    }
+
                     $sig = SIGUSR2;
                     Run::showTag('reloadType', 'only-task');
                 } else {
                     $sig = SIGUSR1;
+
                     Run::showTag('reloadType', 'all-worker');
                 }
 
