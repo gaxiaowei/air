@@ -6,6 +6,7 @@ use Air\Kernel\Container\Container;
 use Air\Kernel\Debug\Debug;
 use Air\Kernel\Debug\IDebug;
 use Air\Kernel\Dispatcher\Dispatcher;
+use Air\Kernel\Routing\RouteDispatcher;
 use Air\Kernel\Routing\Router;
 use Air\Log\Logger;
 use Air\Service\Server\IServer;
@@ -56,12 +57,12 @@ final class Air extends Container
      * @param string $pattern
      * @return IServer
      */
-    public function server(string $pattern = 'ng') : IServer
+    public static function server(string $pattern = 'ng') : IServer
     {
-        $this->server = $pattern;
+        static::getInstance()->server = $pattern;
 
         try {
-            return $this->make($this->server);
+            return static::getInstance()->make(static::getInstance()->server);
         } catch (\Throwable $throwable) {
             die($throwable->getMessage().PHP_EOL);
         }
@@ -71,11 +72,22 @@ final class Air extends Container
      * 获取调度对象
      * @return Dispatcher
      */
-    public function getDispatcher() : Dispatcher
+    public static function getDispatcher() : Dispatcher
     {
-        $dispatcherClass = $this->getAlias('dispatcher');
+        $dispatcherClass = static::getInstance()->getAlias('dispatcher');
 
-        return new $dispatcherClass($this);
+        return new $dispatcherClass(static::getInstance());
+    }
+
+    /**
+     * 路由分发对象
+     * @return RouteDispatcher
+     */
+    public static function getRouteDispatcher() : RouteDispatcher
+    {
+        $routeDispatcher = static::getInstance()->getAlias('route.dispatcher');
+
+        return new $routeDispatcher(static::getInstance());
     }
 
     /**

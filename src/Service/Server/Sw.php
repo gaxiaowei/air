@@ -121,8 +121,8 @@ class Sw implements IServer
             /**@var $req Request**/
             $req = new Request([], $data, [], [], [], [], null);
 
-            /**@var $res Response* */
-            $res = (new RouteDispatcher($this->getAir()))->run(
+            /**@var $res Response **/
+            $res = $this->getAir()::getRouteDispatcher()->run(
                 $this->getAir()->get('router'),
                 $req
             );
@@ -132,7 +132,7 @@ class Sw implements IServer
             go(function() use ($e) {
                 $e = ($e instanceof \Exception) ? $e : new FatalThrowableError($e);
 
-                $this->getAir()->get(\Air\Kernel\Debug\IDebug::class)->report($e);
+                $this->getAir()->get('debug')->report($e);
             });
 
             $content = [
@@ -272,7 +272,7 @@ class Sw implements IServer
             $this->setProcessName('php worker process');
 
             /**! 加载路由 !**/
-            foreach (glob($this->getAir()->getRoutesPath().DIRECTORY_SEPARATOR.'*.php') as $file) {
+            foreach (glob($this->getAir()->getRoutesDirPath().DIRECTORY_SEPARATOR.'*.php') as $file) {
                 $this->getAir()
                     ->make('router')
                     ->group([], $file);
