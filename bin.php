@@ -5,11 +5,10 @@ if (!defined('ROOT')) {
 }
 
 /**! 包含composer自动加载类 !**/
-$composerAutoloadFilePath = __DIR__ . '/vendor/autoload.php';
-if (!file_exists($composerAutoloadFilePath)) {
+if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
     die("include composer autoload.php fail\n");
 }
-$composerLoader = require_once $composerAutoloadFilePath;
+$composerLoader = require_once __DIR__ . '/vendor/autoload.php';
 
 /**! SW的版本判断 !**/
 $version = phpversion('swoole');
@@ -17,18 +16,13 @@ if (version_compare($version, '4.2.6', '<')) {
     die("the swoole extension version must be >= 4.2.6 (current: {$version})\n");
 }
 
+/**! 启动参数相关 !**/
 $commandList = $argv;
 $scriptName = array_shift($commandList);
-
 $mainCommand = array_shift($commandList);
 
 try {
     $air = new Air\Air(ROOT);
-
-    /**! 设置项目命名空间加载 psr-4规范 !**/
-    $composerLoader->addPsr4('App\\', $air->getAppDirPath());
-    unset($composerAutoloadFilePath, $composerLoader);
-
     $config = $air->make('config');
 
     /**! 创建项目目录 !**/
@@ -67,6 +61,11 @@ try {
             AirBin::showTag('swoole version', $version);
             AirBin::showTag('php version', phpversion());
 
+            /**! 设置项目命名空间加载 psr-4规范 !**/
+            $composerLoader->addPsr4('App\\', $air->getAppDirPath());
+            unset($composerAutoloadFilePath, $composerLoader);
+
+            /**! 启动sw !**/
             $air::server('sw')->run();
             break;
         }
@@ -105,7 +104,7 @@ try {
             break;
         }
 
-        /**! 从启加载命令 !**/
+        /**! 重启加载命令 !**/
         case 'reload' : {
             $all = false;
             if (in_array('-all', $commandList)) {
