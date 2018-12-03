@@ -1,16 +1,17 @@
 <?php
-/**! 此文件为包含文件 在真实的文件中必须定义常量 ROOT 代表的是项目根目录 !**/
-
+/**! 在命令入口文件中必须定义 ROOT 常量，此目录为项目根目录 !**/
 if (!defined('ROOT')) {
-    die("Undefined the project root directory \n");
+    die("undefined the project root directory \n");
 }
 
-require_once __DIR__ . '/vendor/autoload.php';
-
-if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
+/**! 包含composer自动加载类 !**/
+$composerAutoloadFilePath = __DIR__ . '/vendor/autoload.php';
+if (!file_exists($composerAutoloadFilePath)) {
     die("include composer autoload.php fail\n");
 }
+$composerLoader = require_once $composerAutoloadFilePath;
 
+/**! SW的版本判断 !**/
 $version = phpversion('swoole');
 if (version_compare($version, '4.2.6', '<')) {
     die("the swoole extension version must be >= 4.2.6 (current: {$version})\n");
@@ -18,6 +19,150 @@ if (version_compare($version, '4.2.6', '<')) {
 
 $commandList = $argv;
 $scriptName = array_shift($commandList);
+
+$mainCommand = array_shift($commandList);
+
+try {
+    $air = new Air\Air(ROOT);
+
+    /**! 设置项目命名空间加载 psr-4规范 !**/
+    $composerLoader->addPsr4('App\\', $air->getAppDirPath());
+    unset($composerAutoloadFilePath, $composerLoader);
+
+    $config = $air->make('config');
+
+    /**! 创建项目目录 !**/
+    AirBin::createDir($air);
+
+    switch ($mainCommand) {
+        /**! 运行命令 !**/
+        case 'start' : {
+            if ($config->get('sw.tcp.enable')) {
+                AirBin::showTag('tcp server', $config->get('app.name'));
+                AirBin::showTag('listen address', $config->get('sw.tcp.bind'));
+                AirBin::showTag('listen port', $config->get('sw.tcp.port'));
+            }
+
+            if ($config->get('sw.http.enable')) {
+                AirBin::showTag('http server', $config->get('app.name'));
+                AirBin::showTag('listen address', $config->get('sw.http.bind'));
+                AirBin::showTag('listen port', $config->get('sw.http.port'));
+            }
+
+            foreach (swoole_get_local_ip() as $eth => $val) {
+                AirBin::showTag('ip@'.$eth, $val);
+            }
+
+            /**! 守护进程运行 !**/
+            if (in_array('-d', $commandList)) {
+                $config->set('sw.set.daemonize', 1);
+                $config->set('sw.set.pid_file', $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid');
+                $config->set('sw.set.log_file', $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'sw.log');
+            }
+
+            AirBin::showTag('worker num', $config->get('sw.set.worker_num'));
+            AirBin::showTag('task worker num', $config->get('sw.set.task_worker_num'));
+            AirBin::showTag('run at user', get_current_user());
+            AirBin::showTag('daemonize', $config->get('sw.set.daemonize') ? 'true' : 'false');
+            AirBin::showTag('swoole version', $version);
+            AirBin::showTag('php version', phpversion());
+
+            $air::server('sw')->run();
+            break;
+        }
+
+        /**! 停止服务命令 !**/
+        case 'stop' : {
+            if (is_file($pid = $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid')) {
+                $processNumber = intval(file_get_contents($pid));
+                if (!posix_kill($processNumber, 0)) {
+                    echo "PID :{$pid} not exist \n";
+                    return false;
+                }
+
+                posix_kill($processNumber, in_array('-force', $commandList) ? SIGKILL : SIGTERM);
+
+                /**! 等待5秒 !**/
+                $time = time();
+                while (true) {
+                    usleep(1000);
+                    if (!posix_kill($processNumber, 0)) {
+                        echo "server stop at " . date("y-m-d h:i:s") . "\n";
+
+                        @unlink($pid);
+                        break;
+                    } else {
+                        if (time() - $time > 5) {
+                            echo "stop server fail.try again \n";
+                            break;
+                        }
+                    }
+                }
+            } else {
+                echo "PID file does not exist, please check whether to run in the daemon mode!\n";
+            }
+
+            break;
+        }
+
+        /**! 从启加载命令 !**/
+        case 'reload' : {
+            $all = false;
+            if (in_array('-all', $commandList)) {
+                $all = true;
+            }
+
+            if (is_file($pid = $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid')) {
+                if (!$all) {
+                    if (!$config->get('sw.set.task_worker_num')) {
+                        AirBin::showTag('reload error', 'no task run');
+                        return;
+                    }
+
+                    $sig = SIGUSR2;
+                    AirBin::showTag('reloadType', 'only-task-worker');
+                } else {
+                    $sig = SIGUSR1;
+
+                    AirBin::showTag('reloadType', 'all-worker');
+                }
+
+                AirBin::cacheClear();
+
+                $processNumber = intval(file_get_contents($pid));
+                if (!posix_kill($processNumber, 0)) {
+                    echo "pid :{$pid} not exist \n";
+                    return;
+                }
+
+                posix_kill($processNumber, $sig);
+                echo "send server reload command at " . date("y-m-d h:i:s") . "\n";
+            } else {
+                echo "PID file does not exist, please check whether to run in the daemon mode!\n";
+            }
+
+            break;
+        }
+
+        /**! 帮助命令 !**/
+        case 'help':
+        default : {
+            $com = array_shift($commandList);
+            if ($com === 'start'){
+                AirBin::showHelpForStart();
+            } elseif ($com === 'stop'){
+                AirBin::showHelpForStop();
+            } elseif ($com === 'reload'){
+                AirBin::showHelpForReload();
+            } else {
+                AirBin::showHelp();
+            }
+            break;
+        }
+    }
+} catch (\Throwable $ex) {
+    die($ex->getMessage()."\n");
+}
 
 class AirBin
 {
@@ -102,7 +247,7 @@ HELP_RELOAD;
     public static function showHelp()
     {
         echo <<<DEFAULTHELP
-\e[33m使用:\e[0m  [脚本文件] [操作] [选项]
+\e[33m使用:\e[0m  {$GLOBALS['scriptName']} [操作] [选项]
 
 \e[33m操作:\e[0m
 \e[32m  start \e[0m        启动服务
@@ -113,140 +258,4 @@ HELP_RELOAD;
 \e[31m如查看\e[0m start \e[31m操作的详细信息 请输入\e[0m {$GLOBALS['scriptName']} help start\n\n
 DEFAULTHELP;
     }
-}
-
-$mainCommand = array_shift($commandList);
-
-try {
-    $air = new Air\Air(ROOT);
-    $config = $air->make('config');
-
-    AirBin::createDir($air);
-
-    switch ($mainCommand) {
-        case 'start' : {
-            if ($config->get('sw.tcp.enable')) {
-                AirBin::showTag('tcp server', $config->get('app.name'));
-                AirBin::showTag('listen address', $config->get('sw.tcp.bind'));
-                AirBin::showTag('listen port', $config->get('sw.tcp.port'));
-            }
-
-            if ($config->get('sw.http.enable')) {
-                AirBin::showTag('http server', $config->get('app.name'));
-                AirBin::showTag('listen address', $config->get('sw.http.bind'));
-                AirBin::showTag('listen port', $config->get('sw.http.port'));
-            }
-
-            foreach (swoole_get_local_ip() as $eth => $val) {
-                AirBin::showTag('ip@'.$eth, $val);
-            }
-
-            /**! 守护进程运行 !**/
-            if (in_array('-d', $commandList)) {
-                $config->set('sw.set.daemonize', 1);
-                $config->set('sw.set.pid_file', $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid');
-                $config->set('sw.set.log_file', $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'sw.log');
-            }
-
-            AirBin::showTag('worker num', $config->get('sw.set.worker_num'));
-            AirBin::showTag('task worker num', $config->get('sw.set.task_worker_num'));
-            AirBin::showTag('run at user', get_current_user());
-            AirBin::showTag('daemonize', $config->get('sw.set.daemonize') ? 'true' : 'false');
-            AirBin::showTag('swoole version', $version);
-            AirBin::showTag('php version', phpversion());
-
-            $air::server('sw')->run();
-            break;
-        }
-
-        case 'stop' : {
-            if (is_file($pid = $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid')) {
-                $processNumber = intval(file_get_contents($pid));
-                if (!swoole_process::kill($processNumber, 0)) {
-                    echo "PID :{$pid} not exist \n";
-                    return false;
-                }
-
-                swoole_process::kill($processNumber, in_array('-force', $commandList) ? SIGKILL : SIGTERM);
-
-                /**! 等待5秒 !**/
-                $time = time();
-                $flag = false;
-                while (true) {
-                    usleep(1000);
-                    if (!swoole_process::kill($processNumber, 0)) {
-                        echo "server stop at " . date("y-m-d h:i:s") . "\n";
-
-                        @unlink($pid);
-                        $flag = true;
-                        break;
-                    } else {
-                        if (time() - $time > 5) {
-                            echo "stop server fail.try again \n";
-                            break;
-                        }
-                    }
-                }
-            } else {
-                echo "PID file does not exist, please check whether to run in the daemon mode!\n";
-            }
-
-            break;
-        }
-
-        case 'reload' : {
-            $all = false;
-            if (in_array('-all', $commandList)) {
-                $all = true;
-            }
-
-            if (is_file($pid = $air->getRuntimeDirPath().DIRECTORY_SEPARATOR.'pid.pid')) {
-                if (!$all) {
-                    if (!$config->get('sw.set.task_worker_num')) {
-                        AirBin::showTag('reload error', 'no task run');
-                        return;
-                    }
-
-                    $sig = SIGUSR2;
-                    AirBin::showTag('reloadType', 'only-task-worker');
-                } else {
-                    $sig = SIGUSR1;
-
-                    AirBin::showTag('reloadType', 'all-worker');
-                }
-
-                AirBin::cacheClear();
-
-                $processNumber = intval(file_get_contents($pid));
-                if (!swoole_process::kill($processNumber, 0)) {
-                    echo "pid :{$pid} not exist \n";
-                    return;
-                }
-
-                swoole_process::kill($processNumber, $sig);
-                echo "send server reload command at " . date("y-m-d h:i:s") . "\n";
-            } else {
-                echo "PID file does not exist, please check whether to run in the daemon mode!\n";
-            }
-
-            break;
-        }
-
-        case 'help':
-        default:{
-            $com = array_shift($commandList);
-            if ($com == 'start'){
-                AirBin::showHelpForStart();
-            } elseif ($com == 'stop'){
-                AirBin::showHelpForStop();
-            } elseif ($com == 'reload'){
-                AirBin::showHelpForReload();
-            } else {
-                AirBin::showHelp();
-            }
-            break;
-        }
-    }
-} catch (\Throwable $ex) {
-    die($ex->getMessage()."\n");
 }
